@@ -46,8 +46,7 @@ class AttentionCritic(nn.Module):
             critic.add_module('critic_fc1', nn.Linear(2 * hidden_dim,
                                                       hidden_dim))
             critic.add_module('critic_nl', nn.LeakyReLU())
-            # critic.add_module('critic_fc2', nn.Linear(hidden_dim, odim))  # original discrete policy
-            critic.add_module('critic_fc2', nn.Linear(hidden_dim, 1))  # for continuous policy
+            critic.add_module('critic_fc2', nn.Linear(hidden_dim, odim))
             self.critics.append(critic)
 
             state_encoder = nn.Sequential()
@@ -108,49 +107,16 @@ class AttentionCritic(nn.Module):
         actions = [a for s, a in inps]
         inps = [torch.cat((s, a), dim=1) for s, a in inps]
         # extract state-action encoding for each agent
-        sa_encodings = []
-        for encoder, inp in zip(self.critic_encoders, inps):
-            one_sa = encoder(inp)
-            sa_encodings.append(one_sa)
-        # sa_encodings = [encoder(inp) for encoder, inp in zip(self.critic_encoders, inps)]
+        sa_encodings = [encoder(inp) for encoder, inp in zip(self.critic_encoders, inps)]
         # extract state encoding for each agent that we're returning Q for
-        s_encodings = []
-        for a_i in agents:
-            one_s = self.state_encoders[a_i](states[a_i])
-            s_encodings.append(one_s)
-        # s_encodings = [self.state_encoders[a_i](states[a_i]) for a_i in agents]
+        s_encodings = [self.state_encoders[a_i](states[a_i]) for a_i in agents]
         # extract keys for each head for each agent
-        all_head_keys = []
-        for k_ext in self.key_extractors:
-            each_head_all_agent_key = []
-            for enc in sa_encodings:
-                one_agent_keys = k_ext(enc)
-                each_head_all_agent_key.append(one_agent_keys)
-            all_head_keys.append(each_head_all_agent_key)
-
-        # all_head_keys = [[k_ext(enc) for enc in sa_encodings] for k_ext in self.key_extractors]  # this is the original version. All values the same, thanks to same torch seed.
-
+        all_head_keys = [[k_ext(enc) for enc in sa_encodings] for k_ext in self.key_extractors]
         # extract sa values for each head for each agent
-        all_head_values = []
-        for v_ext in self.value_extractors:
-            each_head_all_agent_value = []
-            for enc in sa_encodings:
-                one_agent_value = v_ext(enc)
-                each_head_all_agent_value.append(one_agent_value)
-            all_head_values.append(each_head_all_agent_value)
-        # all_head_values = [[v_ext(enc) for enc in sa_encodings] for v_ext in self.value_extractors]  # original
-
+        all_head_values = [[v_ext(enc) for enc in sa_encodings] for v_ext in self.value_extractors]
         # extract selectors for each head for each agent that we're returning Q for
-        all_head_selectors = []  # this is the queries vector
-        for sel_ext in self.selector_extractors:
-            each_head_selector = []
-            for i, enc in enumerate(s_encodings):
-                if i in agents:
-                    one_agent_selector = sel_ext(enc)
-                    each_head_selector.append(one_agent_selector)
-            all_head_selectors.append(each_head_selector)
-
-        # all_head_selectors = [[sel_ext(enc) for i, enc in enumerate(s_encodings) if i in agents]for sel_ext in self.selector_extractors]  # original
+        all_head_selectors = [[sel_ext(enc) for i, enc in enumerate(s_encodings) if i in agents]
+                              for sel_ext in self.selector_extractors]
 
         other_all_values = [[] for _ in range(len(agents))]
         all_attend_logits = [[] for _ in range(len(agents))]
@@ -179,21 +145,14 @@ class AttentionCritic(nn.Module):
             head_entropies = [(-((probs + 1e-8).log() * probs).squeeze().sum(1)
                                .mean()) for probs in all_attend_probs[i]]
             agent_rets = []
-            # ------------- for continuous action -------------
-            # For discrete action, we output Q-value for each possible action for each agent
-            # But for continuous action, is not necessary, we only need to output a Q-value for the current SA pair
-            # So, for continuous action, we just need Batch x 1 for the q-value
             critic_in = torch.cat((s_encodings[i], *other_all_values[i]), dim=1)
-            q = self.critics[a_i](critic_in)
-            # ------------ end for continuous action ---------
-            # critic_in = torch.cat((s_encodings[i], *other_all_values[i]), dim=1)
-            # all_q = self.critics[a_i](critic_in)
-            # int_acs = actions[a_i].max(dim=1, keepdim=True)[1]
-            # q = all_q.gather(1, int_acs)
+            all_q = self.critics[a_i](critic_in)
+            int_acs = actions[a_i].max(dim=1, keepdim=True)[1]
+            q = all_q.gather(1, int_acs)
             if return_q:
                 agent_rets.append(q)
-            # if return_all_q:  # this return_all_q is only applicable for discrete action space
-            #     agent_rets.append(all_q)
+            if return_all_q:
+                agent_rets.append(all_q)
             if regularize:
                 # regularize magnitude of attention logits
                 attend_mag_reg = 1e-3 * sum((logit**2).mean() for logit in

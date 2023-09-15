@@ -1,8 +1,7 @@
+import argparse
 import torch
 import os
 import numpy as np
-import wandb
-import argparse, datetime
 from gym.spaces import Box, Discrete
 from pathlib import Path
 from torch.autograd import Variable
@@ -10,16 +9,14 @@ from tensorboardX import SummaryWriter
 from utils.make_env import make_env
 from utils.buffer import ReplayBuffer
 from utils.env_wrappers import SubprocVecEnv, DummyVecEnv
-import time
 from algorithms.attention_sac import AttentionSAC
 
 
 def make_parallel_env(env_id, n_rollout_threads, seed):
     def get_env_fn(rank):
         def init_env():
-            # env = make_env(env_id, discrete_action=True)
-            env = make_env(env_id, discrete_action=False)
-            env._seed(seed + rank * 1000)
+            env = make_env(env_id, discrete_action=True)
+            env.seed(seed + rank * 1000)
             np.random.seed(seed + rank * 1000)
             return env
         return init_env
@@ -29,22 +26,6 @@ def make_parallel_env(env_id, n_rollout_threads, seed):
         return SubprocVecEnv([get_env_fn(i) for i in range(n_rollout_threads)])
 
 def run(config):
-    today = datetime.date.today()
-    current_date = today.strftime("%d%m%y")
-    current_time = datetime.datetime.now()
-    formatted_time = current_time.strftime("%H_%M_%S")
-
-    wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
-    wandb.init(
-        # set the wandb project where this run will be logged
-        project="MADDPG_sample_newFrameWork",
-        name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
-        # track hyperparameters and run metadata
-        config={
-            "epochs": config.n_episodes,
-        }
-    )
-
     model_dir = Path('./models') / config.env_id / config.model_name
     if not model_dir.exists():
         run_num = 1
@@ -57,7 +38,6 @@ def run(config):
         else:
             run_num = max(exst_run_nums) + 1
     curr_run = 'run%i' % run_num
-    print("current run number is {}".format(curr_run))
     run_dir = model_dir / curr_run
     log_dir = run_dir / 'logs'
     os.makedirs(log_dir)
@@ -66,21 +46,15 @@ def run(config):
     torch.manual_seed(run_num)
     np.random.seed(run_num)
     env = make_parallel_env(config.env_id, config.n_rollout_threads, run_num)
-    if config.mode == "train":
-        explore_input = True
-        model = AttentionSAC.init_from_env(env,
-                                           tau=config.tau,
-                                           pi_lr=config.pi_lr,
-                                           q_lr=config.q_lr,
-                                           gamma=config.gamma,
-                                           pol_hidden_dim=config.pol_hidden_dim,
-                                           critic_hidden_dim=config.critic_hidden_dim,
-                                           attend_heads=config.attend_heads,
-                                           reward_scale=config.reward_scale)
-    else:
-        model = AttentionSAC.init_from_save(r"F:\githubClone\MAAC_baseline\models\simple_spread\MAAC\run93\incremental\model_ep43001.pt")
-        print("model loaded")
-        explore_input = False
+    model = AttentionSAC.init_from_env(env,
+                                       tau=config.tau,
+                                       pi_lr=config.pi_lr,
+                                       q_lr=config.q_lr,
+                                       gamma=config.gamma,
+                                       pol_hidden_dim=config.pol_hidden_dim,
+                                       critic_hidden_dim=config.critic_hidden_dim,
+                                       attend_heads=config.attend_heads,
+                                       reward_scale=config.reward_scale)
     replay_buffer = ReplayBuffer(config.buffer_length, model.nagents,
                                  [obsp.shape[0] for obsp in env.observation_space],
                                  [acsp.shape[0] if isinstance(acsp, Box) else acsp.n
@@ -93,11 +67,13 @@ def run(config):
         obs = env.reset()
         model.prep_rollouts(device='cpu')
 
-        for et_i in range(config.episode_length):  # start of an step in the episode
+        for et_i in range(config.episode_length):
             # rearrange observations to be per agent, and convert to torch Variable
-            torch_obs = [Variable(torch.Tensor(np.vstack(obs[:, i])), requires_grad=False) for i in range(model.nagents)]
+            torch_obs = [Variable(torch.Tensor(np.vstack(obs[:, i])),
+                                  requires_grad=False)
+                         for i in range(model.nagents)]
             # get actions as torch Variables
-            torch_agent_actions = model.step(torch_obs, ep_i, explore=explore_input)
+            torch_agent_actions = model.step(torch_obs, explore=True)
             # convert actions to numpy arrays
             agent_actions = [ac.data.numpy() for ac in torch_agent_actions]
             # rearrange actions to be per environment
@@ -119,44 +95,33 @@ def run(config):
                     model.update_policies(sample, logger=logger)
                     model.update_all_targets()
                 model.prep_rollouts(device='cpu')
-            # if explore_input == False:  # when evaluation, every step we need to show result
-            #     time.sleep(0.02)
-            #     env.render_mine()
-            # time.sleep(0.02)
-            # env.render()
         ep_rews = replay_buffer.get_average_rewards(
             config.episode_length * config.n_rollout_threads)
-        for landmark in env.envs[0].world.landmarks:
-            print("{} is at position {}".format(landmark.name, landmark.state.p_pos))
         for a_i, a_ep_rew in enumerate(ep_rews):
-            logger.add_scalar('agent%i/mean_episode_rewards' % a_i, a_ep_rew * config.episode_length, ep_i)
-            wandb.log({'agent' + str(a_i) + 'mean_episode_rewards': float(a_ep_rew * config.episode_length)})
-            print("agent {}, the mean episode reward is {}".format(a_i, a_ep_rew * config.episode_length))
+            logger.add_scalar('agent%i/mean_episode_rewards' % a_i,
+                              a_ep_rew * config.episode_length, ep_i)
 
-        if config.mode == "train":
-            if ep_i % config.save_interval < config.n_rollout_threads:
-                model.prep_rollouts(device='cpu')
-                os.makedirs(run_dir / 'incremental', exist_ok=True)
-                model.save(run_dir / 'incremental' / ('model_ep%i.pt' % (ep_i + 1)))
-                model.save(run_dir / 'model.pt')
-        else:
-            break  # during evaluation we only run algorithm once
+        if ep_i % config.save_interval < config.n_rollout_threads:
+            model.prep_rollouts(device='cpu')
+            os.makedirs(run_dir / 'incremental', exist_ok=True)
+            model.save(run_dir / 'incremental' / ('model_ep%i.pt' % (ep_i + 1)))
+            model.save(run_dir / 'model.pt')
 
     model.save(run_dir / 'model.pt')
     env.close()
     logger.export_scalars_to_json(str(log_dir / 'summary.json'))
     logger.close()
-    wandb.finish()
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("env_id", default="simple_spread.py", help="Name of environment")
-    parser.add_argument("model_name", help="Name of directory to store " +
+    parser.add_argument("env_id", help="Name of environment")
+    parser.add_argument("model_name",
+                        help="Name of directory to store " +
                              "model/training contents")
-    parser.add_argument('--mode', default="train", type=str, help="train/eval")
-    parser.add_argument("--n_rollout_threads", default=1, type=int)
+    parser.add_argument("--n_rollout_threads", default=12, type=int)
     parser.add_argument("--buffer_length", default=int(1e6), type=int)
-    parser.add_argument("--n_episodes", default=50000, type=int)     #50000
+    parser.add_argument("--n_episodes", default=50000, type=int)
     parser.add_argument("--episode_length", default=25, type=int)
     parser.add_argument("--steps_per_update", default=100, type=int)
     parser.add_argument("--num_updates", default=4, type=int,

@@ -112,8 +112,7 @@ class DummyVecEnv(VecEnv):
 
     def step_wait(self):
         results = [env.step(a) for (a,env) in zip(self.actions, self.envs)]
-        # obs, rews, dones, infos = map(lambda x: np.array(x, dtype=object), zip(*results))
-        obs, rews, dones, infos = map(lambda x: np.array(x), zip(*results))
+        obs, rews, dones, infos = map(np.array, zip(*results))
         self.ts += 1
         for (i, done) in enumerate(dones):
             if all(done): 
@@ -124,10 +123,7 @@ class DummyVecEnv(VecEnv):
 
     def reset(self):        
         results = [env.reset() for env in self.envs]
-        # results[0][6] = np.append(results[0][6], [0, 0])
-        # results[0][7] = np.append(results[0][7], [0, 0])
-        # return np.array(results, dtype=object)  # for fully observable treasure collection
-        return np.array(results)  # for simple spread environment
+        return np.array(results)
 
     def close(self):
         return

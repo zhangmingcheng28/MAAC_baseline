@@ -4,9 +4,6 @@ from torch.optim import Adam
 from utils.misc import soft_update, hard_update, enable_gradients, disable_gradients
 from utils.agents import AttentionAgent
 from utils.critics import AttentionCritic
-import copy
-import numpy as np
-import time
 
 MSELoss = torch.nn.MSELoss()
 
@@ -62,8 +59,6 @@ class AttentionSAC(object):
         self.trgt_critic_dev = 'cpu'  # device for target critics
         self.niter = 0
 
-        self.var = [1.0 for i in range(len(agent_init_params))]  # added for con act space
-
     @property
     def policies(self):
         return [a.policy for a in self.agents]
@@ -72,7 +67,7 @@ class AttentionSAC(object):
     def target_policies(self):
         return [a.target_policy for a in self.agents]
 
-    def step(self, observations, ep_i, explore=False):
+    def step(self, observations, explore=False):
         """
         Take a step forward in environment with all agents
         Inputs:
@@ -80,30 +75,8 @@ class AttentionSAC(object):
         Outputs:
             actions: List of actions for each agent
         """
-        # ---------- added for con act space-------------
-        outlist = []
-        for a, obs, var_idx in zip(self.agents, observations, range(len(self.var))):
-            act = a.step(obs, explore=explore)
-        # ------- for no extra noise -------------
-            act = torch.clamp(act, -1.0, 1.0)
-            outlist.append(act)
-        # ------- end for no extra noise -------------
-        #     if explore:
-        #         act = act + torch.from_numpy(np.random.randn(2) * self.var[var_idx])
-        #         if self.var[var_idx] > 0.05:
-        #             self.var[var_idx] = self.var[var_idx] * 0.999998
-        #         act = torch.clamp(act, -1.0, 1.0)
-        #     outlist.append(act)
-        # for var_idx, var in enumerate(self.var):
-        #     print("Current episode {}, agent {} var is {}".format(ep_i, var_idx, var))
-        return outlist
-        # end of adding for con act space --------------------
-
-        # outlist=[]
-        # for a, obs in zip(self.agents, observations):
-        #     outlist.append(a.step(obs, explore=explore))
-        # return outlist
-
+        return [a.step(obs, explore=explore) for a, obs in zip(self.agents,
+                                                               observations)]
 
     def update_critic(self, sample, soft=True, logger=None, **kwargs):
         """
@@ -114,7 +87,7 @@ class AttentionSAC(object):
         next_acs = []
         next_log_pis = []
         for pi, ob in zip(self.target_policies, next_obs):
-            curr_next_ac, curr_next_log_pi = pi(ob, return_log_pi=True)  # pi is the target actor policy
+            curr_next_ac, curr_next_log_pi = pi(ob, return_log_pi=True)
             next_acs.append(curr_next_ac)
             next_log_pis.append(curr_next_log_pi)
         trgt_critic_in = list(zip(next_obs, next_acs))
@@ -123,9 +96,12 @@ class AttentionSAC(object):
         critic_rets = self.critic(critic_in, regularize=True,
                                   logger=logger, niter=self.niter)
         q_loss = 0
-        for a_i, nq, log_pi, (pq, regs) in zip(range(self.nagents), next_qs, next_log_pis, critic_rets):
-            target_q = (rews[a_i].view(-1, 1) + self.gamma * nq * (1 - dones[a_i].view(-1, 1)))
-            if soft:  # this is a technique that is used in SAC. Used to calculate entropy regularization term
+        for a_i, nq, log_pi, (pq, regs) in zip(range(self.nagents), next_qs,
+                                               next_log_pis, critic_rets):
+            target_q = (rews[a_i].view(-1, 1) +
+                        self.gamma * nq *
+                        (1 - dones[a_i].view(-1, 1)))
+            if soft:
                 target_q -= log_pi / self.reward_scale
             q_loss += MSELoss(pq, target_q.detach())
             for reg in regs:
@@ -143,49 +119,31 @@ class AttentionSAC(object):
         self.niter += 1
 
     def update_policies(self, sample, soft=True, logger=None, **kwargs):
-        soft = False
         obs, acs, rews, next_obs, dones = sample
         samp_acs = []
         all_probs = []
-        # all_log_pis = []
+        all_log_pis = []
         all_pol_regs = []
-        all_baselines = []
 
         for a_i, pi, ob in zip(range(self.nagents), self.policies, obs):
-            # curr_ac, probs, log_pi, pol_regs, ent = pi(ob, return_all_probs=True, return_log_pi=True, regularize=True, return_entropy=True)
-            curr_ac, log_pi, pol_regs, ent = pi(ob, return_all_probs=True, return_log_pi=True, regularize=True, return_entropy=True)
-            logger.add_scalar('agent%i/policy_entropy' % a_i, ent, self.niter)
+            curr_ac, probs, log_pi, pol_regs, ent = pi(
+                ob, return_all_probs=True, return_log_pi=True,
+                regularize=True, return_entropy=True)
+            logger.add_scalar('agent%i/policy_entropy' % a_i, ent,
+                              self.niter)
             samp_acs.append(curr_ac)
-            all_probs.append(log_pi)
-            # all_log_pis.append(log_pi)
+            all_probs.append(probs)
+            all_log_pis.append(log_pi)
             all_pol_regs.append(pol_regs)
 
         critic_in = list(zip(obs, samp_acs))
-        critic_rets = self.critic(critic_in, return_all_q=True)  # this is for current critic NN
-
-        # ----------- baseline function for advantage function with continuous action space ---------
-        # curT = time.time()
-        # for a_i, pi, cur_obs in zip(range(self.nagents), self.policies, obs):
-        #     sampled_Q = []
-        #     act_clone = copy.deepcopy(acs)
-        #     for _ in range(100):  # we sample an action for 100 times for individual agent
-        #         sampled_action = pi(cur_obs)
-        #         act_clone[a_i] = sampled_action # replace the action from experience replay with the sampled_action from the policy.
-        #         sample_critic_in = list(zip(obs, act_clone))
-        #         sampled_Q_all = self.critic(sample_critic_in)
-        #         sampled_Q.append(sampled_Q_all[a_i])
-        #     baseline_expect_Q = torch.mean(torch.stack(sampled_Q))
-        #     all_baselines.append(baseline_expect_Q)
-        #     endT = time.time()-curT
-        #     print("when sample 100 times, the time take is {} seconds".format(endT))
-        # ----------- end of baseline function for advantage function with continuous action space ---------
-
-        # for a_i, probs, log_pi, pol_regs, (q, all_q) in zip(range(self.nagents), all_probs, all_log_pis, all_pol_regs, critic_rets):
-        for a_i, log_pi, pol_regs, q, v in zip(range(self.nagents), all_probs, all_pol_regs, critic_rets, all_baselines):
+        critic_rets = self.critic(critic_in, return_all_q=True)
+        for a_i, probs, log_pi, pol_regs, (q, all_q) in zip(range(self.nagents), all_probs,
+                                                            all_log_pis, all_pol_regs,
+                                                            critic_rets):
             curr_agent = self.agents[a_i]
-            # v = (all_q * probs).sum(dim=1, keepdim=True)  # this is the baseline function, or the "b"
-            # pol_target = q - v
-            pol_target = q
+            v = (all_q * probs).sum(dim=1, keepdim=True)
+            pol_target = q - v
             if soft:
                 pol_loss = (log_pi * (log_pi / self.reward_scale - pol_target).detach()).mean()
             else:
@@ -285,11 +243,11 @@ class AttentionSAC(object):
         """
         agent_init_params = []
         sa_size = []
-        for acsp, obsp in zip(env.action_space, env.observation_space):
-            # agent_init_params.append({'num_in_pol': obsp.shape[0],'num_out_pol': acsp.n})
-            agent_init_params.append({'num_in_pol': obsp.shape[0],'num_out_pol': 2})
-            # sa_size.append((obsp.shape[0], acsp.n))
-            sa_size.append((obsp.shape[0], 2))
+        for acsp, obsp in zip(env.action_space,
+                              env.observation_space):
+            agent_init_params.append({'num_in_pol': obsp.shape[0],
+                                      'num_out_pol': acsp.n})
+            sa_size.append((obsp.shape[0], acsp.n))
 
         init_dict = {'gamma': gamma, 'tau': tau,
                      'pi_lr': pi_lr, 'q_lr': q_lr,

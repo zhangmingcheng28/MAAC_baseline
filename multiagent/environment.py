@@ -176,16 +176,16 @@ class MultiAgentEnv(gym.Env):
                     d = np.argmax(action[0])
                     action[0][:] = 0.0
                     action[0][d] = 1.0
-                if self.discrete_action_space:
-                    agent.action.u[0] += action[0][1] - action[0][2]
-                    agent.action.u[1] += action[0][3] - action[0][4]
+                # if self.discrete_action_space:
+                #     agent.action.u[0] += action[0][1] - action[0][2]
+                #     agent.action.u[1] += action[0][3] - action[0][4]
                 else:
                     agent.action.u = action[0]
             sensitivity = 5.0
             if agent.accel is not None:
                 sensitivity = agent.accel
             agent.action.u *= sensitivity
-            action = action[1:]
+            action = action[1:]  # this line is actually clearing the variable action
         if not agent.silent:
             # communication action
             if self.discrete_action_input:

@@ -98,12 +98,12 @@ def firmmax_sample(logits, temperature, dim=1):
     return F.softmax(y, dim=dim)
 
 def categorical_sample(probs, use_cuda=False):
-    int_acs = torch.multinomial(probs, 1)  # tensor of indices of the actions sampled from the input probabilities, "1" meaning we only sample one action from the action pool. If it return 0, meaning the 1st action in the action pool is choosen. 1 meaning the second action.
+    int_acs = torch.multinomial(probs, 1)
     if use_cuda:
         tensor_type = torch.cuda.FloatTensor
     else:
         tensor_type = torch.FloatTensor
-    acs = Variable(tensor_type(*probs.shape).fill_(0)).scatter_(1, int_acs, 1)  # one-hot encoding for the action space. The "1" will be the action that is being choosen/sampled by "torch.multinomial"
+    acs = Variable(tensor_type(*probs.shape).fill_(0)).scatter_(1, int_acs, 1)
     return int_acs, acs
 
 def disable_gradients(module):
