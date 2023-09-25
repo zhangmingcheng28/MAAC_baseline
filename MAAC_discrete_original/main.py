@@ -10,13 +10,15 @@ from utils.make_env import make_env
 from utils.buffer import ReplayBuffer
 from utils.env_wrappers import SubprocVecEnv, DummyVecEnv
 from algorithms.attention_sac import AttentionSAC
+import wandb
+import datetime
 
 
 def make_parallel_env(env_id, n_rollout_threads, seed):
     def get_env_fn(rank):
         def init_env():
             env = make_env(env_id, discrete_action=True)
-            env.seed(seed + rank * 1000)
+            env._seed(seed + rank * 1000)
             np.random.seed(seed + rank * 1000)
             return env
         return init_env
@@ -25,7 +27,70 @@ def make_parallel_env(env_id, n_rollout_threads, seed):
     else:
         return SubprocVecEnv([get_env_fn(i) for i in range(n_rollout_threads)])
 
+
+def reward_from_state(n_state, all_agents):
+    n_state = [n_state[0, i] for i in range(n_state.shape[1])]
+    rew = []
+
+    for state in n_state:
+
+        obs_landmark = np.array(state[4:10])
+        agent_reward = 0
+        potential_other = []
+        for i in range(3):
+
+            sub_obs = obs_landmark[i*2: i*2+2]
+            dist = np.sqrt(sub_obs[0]**2 + sub_obs[1]**2)
+
+            # if dist < 0.4: agent_reward += 0.3
+            if dist < 0.2: agent_reward += 0.5
+            if dist < 0.1: agent_reward += 1.
+
+
+        otherA = np.array(state[10:12])  # original
+        otherB = np.array(state[12:14])  # original
+
+
+        # ----------self added ------------------ #
+        # cur_pos = state[2:4]
+        # potential_other.append(cur_pos - all_agents[0].state.p_pos)
+        # potential_other.append(cur_pos - all_agents[1].state.p_pos)
+        # potential_other.append(cur_pos - all_agents[2].state.p_pos)
+        # idx_holder = []
+        # for items_idx, items in enumerate(potential_other):
+        #     if sum(items) == 0:
+        #         continue
+        #     idx_holder.append(items_idx)
+        # otherA = potential_other[idx_holder[0]]
+        # otherB = potential_other[idx_holder[1]]
+        # ---------- end of self added ---------- #
+        dist = np.sqrt(otherA[0] ** 2 + otherA[1] ** 2)
+        if dist < 3.1:  agent_reward -= 0.25
+        dist = np.sqrt(otherB[0] ** 2 + otherB[1] ** 2)
+        if dist < 3.1:  agent_reward -= 0.25
+
+        rew.append(agent_reward)
+
+    return rew
+
+
 def run(config):
+    today = datetime.date.today()
+    current_date = today.strftime("%d%m%y")
+    current_time = datetime.datetime.now()
+    formatted_time = current_time.strftime("%H_%M_%S")
+
+    wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
+    wandb.init(
+        # set the wandb project where this run will be logged
+        project="MADDPG_sample_newFrameWork",
+        name='MAAC_D_SS3_test_'+str(current_date) + '_' + str(formatted_time),
+        # track hyperparameters and run metadata
+        config={
+            "epochs": config.n_episodes,
+        }
+    )
+
     model_dir = Path('./models') / config.env_id / config.model_name
     if not model_dir.exists():
         run_num = 1
@@ -66,6 +131,7 @@ def run(config):
                                         config.n_episodes))
         obs = env.reset()
         model.prep_rollouts(device='cpu')
+        ep_acc_rws = 0
 
         for et_i in range(config.episode_length):
             # rearrange observations to be per agent, and convert to torch Variable
@@ -79,11 +145,16 @@ def run(config):
             # rearrange actions to be per environment
             actions = [[ac[i] for ac in agent_actions] for i in range(config.n_rollout_threads)]
             next_obs, rewards, dones, infos = env.step(actions)
+
+            # adds additional global reward
+            rew1 = reward_from_state(next_obs, env.envs[0].agents)
+            rewards = rew1 + (np.array(rewards, dtype=np.float32) / 100.)
+
             replay_buffer.push(obs, agent_actions, rewards, next_obs, dones)
+
             obs = next_obs
             t += config.n_rollout_threads
-            if (len(replay_buffer) >= config.batch_size and
-                (t % config.steps_per_update) < config.n_rollout_threads):
+            if (len(replay_buffer) >= config.batch_size and (t % config.steps_per_update) < config.n_rollout_threads):
                 if config.use_gpu:
                     model.prep_training(device='gpu')
                 else:
@@ -95,48 +166,48 @@ def run(config):
                     model.update_policies(sample, logger=logger)
                     model.update_all_targets()
                 model.prep_rollouts(device='cpu')
-        ep_rews = replay_buffer.get_average_rewards(
-            config.episode_length * config.n_rollout_threads)
-        for a_i, a_ep_rew in enumerate(ep_rews):
-            logger.add_scalar('agent%i/mean_episode_rewards' % a_i,
-                              a_ep_rew * config.episode_length, ep_i)
+            ep_acc_rws = ep_acc_rws + sum(rewards[0])  # must sum(rewards[0]), because rewards is (1x3) not (3,) in shape
+        # ep_rews = replay_buffer.get_average_rewards(config.episode_length * config.n_rollout_threads)
 
-        if ep_i % config.save_interval < config.n_rollout_threads:
-            model.prep_rollouts(device='cpu')
-            os.makedirs(run_dir / 'incremental', exist_ok=True)
-            model.save(run_dir / 'incremental' / ('model_ep%i.pt' % (ep_i + 1)))
+        # for a_i, a_ep_rew in enumerate(ep_acc_rws):
+        #     logger.add_scalar('agent%i/mean_episode_rewards' % a_i, a_ep_rew * config.episode_length, ep_i)
+        print("accumulated episode reward is {}".format(ep_acc_rws))
+        wandb.log({'episode_rewards': float(ep_acc_rws)})
+
+        # if ep_i % config.save_interval < config.n_rollout_threads:
+        #     model.prep_rollouts(device='cpu')
+        #     os.makedirs(run_dir / 'incremental', exist_ok=True)
+        #     model.save(run_dir / 'incremental' / ('model_ep%i.pt' % (ep_i + 1)))
+        #     model.save(run_dir / 'model.pt')
+        if ep_i % config.save_interval == 0:
             model.save(run_dir / 'model.pt')
 
     model.save(run_dir / 'model.pt')
     env.close()
     logger.export_scalars_to_json(str(log_dir / 'summary.json'))
     logger.close()
+    wandb.finish()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("env_id", help="Name of environment")
-    parser.add_argument("model_name",
-                        help="Name of directory to store " +
-                             "model/training contents")
-    parser.add_argument("--n_rollout_threads", default=12, type=int)
+    parser.add_argument("env_id", default="simple_spread.py", help="Name of environment")
+    parser.add_argument("model_name", help="Name of directory to store " + "model/training contents")
+    parser.add_argument("--n_rollout_threads", default=1, type=int)
     parser.add_argument("--buffer_length", default=int(1e6), type=int)
     parser.add_argument("--n_episodes", default=50000, type=int)
-    parser.add_argument("--episode_length", default=25, type=int)
-    parser.add_argument("--steps_per_update", default=100, type=int)
-    parser.add_argument("--num_updates", default=4, type=int,
-                        help="Number of updates per update cycle")
-    parser.add_argument("--batch_size",
-                        default=1024, type=int,
-                        help="Batch size for training")
+    parser.add_argument("--episode_length", default=50, type=int)
+    parser.add_argument("--steps_per_update", default=100, type=int)  # update interval, originally is 100, the smaller this number the longer time to complete one episode
+    parser.add_argument("--num_updates", default=4, type=int, help="Number of updates per update cycle")  # was 4
+    parser.add_argument("--batch_size", default=256, type=int, help="Batch size for training")  # batch size was 1024
     parser.add_argument("--save_interval", default=1000, type=int)
     parser.add_argument("--pol_hidden_dim", default=128, type=int)
     parser.add_argument("--critic_hidden_dim", default=128, type=int)
     parser.add_argument("--attend_heads", default=4, type=int)
-    parser.add_argument("--pi_lr", default=0.001, type=float)
-    parser.add_argument("--q_lr", default=0.001, type=float)
+    parser.add_argument("--pi_lr", default=0.001, type=float)  # actor lr, was 0.001
+    parser.add_argument("--q_lr", default=0.001, type=float)  # critic lr, was 0.001
     parser.add_argument("--tau", default=0.001, type=float)
-    parser.add_argument("--gamma", default=0.99, type=float)
+    parser.add_argument("--gamma", default=0.95, type=float)  # was 0.99
     parser.add_argument("--reward_scale", default=100., type=float)
     parser.add_argument("--use_gpu", action='store_true')
 

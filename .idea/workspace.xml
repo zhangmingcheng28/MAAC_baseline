@@ -2,19 +2,26 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="3761216b-d21e-4e6a-beaa-bddd0948b412" name="默认" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/aws.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/deployment.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/MAAC.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/MAAC.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/MAAC-master/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/MAAC-master/LICENSE" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/MAAC-master/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/MAAC-master/algorithms/attention_sac.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/MAAC-master/envs/mpe_scenarios/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/MAAC-master/envs/mpe_scenarios/fullobs_collect_treasure.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/MAAC-master/envs/mpe_scenarios/multi_speaker_listener.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/MAAC-master/main.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/MAAC-master/utils/agents.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/MAAC-master/utils/buffer.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/MAAC-master/utils/critics.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/MAAC-master/utils/env_wrappers.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/MAAC-master/utils/make_env.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/MAAC-master/utils/misc.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/MAAC-master/utils/policies.py" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/algorithms/attention_sac.py" beforeDir="false" afterPath="$PROJECT_DIR$/algorithms/attention_sac.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/multiagent/environment.py" beforeDir="false" afterPath="$PROJECT_DIR$/multiagent/environment.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/multiagent/scenarios/simple_spread.py" beforeDir="false" afterPath="$PROJECT_DIR$/multiagent/scenarios/simple_spread.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/utils/critics.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/critics.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utils/env_wrappers.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/env_wrappers.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utils/misc.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/misc.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/utils/policies.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/policies.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -231,12 +238,12 @@
   <component name="PropertiesComponent">
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/../MAProj_myversion" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="node.js.detected.package.eslint" value="true" />
     <property name="node.js.selected.package.eslint" value="(autodetect)" />
-    <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
+    <property name="settings.editor.selected.configurable" value="preferences.pluginManager" />
   </component>
-  <component name="RunManager" selected="Python.main">
+  <component name="RunManager" selected="Python.main (3)">
     <configuration default="true" type="PyLettuceRunConfigurationType" factoryName="Lettuce">
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -344,28 +351,6 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="environment" type="PythonConfigurationType" factoryName="Python" temporary="true">
-      <module name="MAAC" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="F:\anaconda\envs\pytorch\python.exe" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/multiagent-particle-envs-master/multiagent" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/multiagent-particle-envs-master/multiagent/environment.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
     <configuration name="main (1)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="MAAC" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -388,6 +373,50 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+    <configuration name="main (2)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="MAAC" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/MAAC-master" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/MAAC-master/main.py" />
+      <option name="PARAMETERS" value="simple_spread MAAC" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="main (3)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="MAAC" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/MAAC_discrete_original" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/MAAC_discrete_original/main.py" />
+      <option name="PARAMETERS" value="simple_spread MAAC" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <configuration name="main" type="PythonConfigurationType" factoryName="Python">
       <module name="MAAC" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -403,28 +432,6 @@
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/main.py" />
       <option name="PARAMETERS" value="simple_spread MAAC" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <configuration name="make_env (1)" type="PythonConfigurationType" factoryName="Python" temporary="true">
-      <module name="MAAC" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="F:\anaconda\envs\pytorch\python.exe" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/multiagent-particle-envs-master" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/multiagent-particle-envs-master/make_env.py" />
-      <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -466,18 +473,18 @@
     <list>
       <item itemvalue="Python.main" />
       <item itemvalue="Python.make_env" />
-      <item itemvalue="Python.environment" />
-      <item itemvalue="Python.make_env (1)" />
       <item itemvalue="Python.environment (1)" />
       <item itemvalue="Python.main (1)" />
+      <item itemvalue="Python.main (2)" />
+      <item itemvalue="Python.main (3)" />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.main (3)" />
+        <item itemvalue="Python.main (2)" />
         <item itemvalue="Python.main (1)" />
         <item itemvalue="Python.environment (1)" />
         <item itemvalue="Python.make_env" />
-        <item itemvalue="Python.environment" />
-        <item itemvalue="Python.make_env (1)" />
       </list>
     </recent_temporary>
   </component>
@@ -495,7 +502,11 @@
       <workItem from="1694505492357" duration="13012000" />
       <workItem from="1694569633762" duration="1203000" />
       <workItem from="1694571527068" duration="48766000" />
-      <workItem from="1694756109362" duration="4759000" />
+      <workItem from="1694756109362" duration="31337000" />
+      <workItem from="1695370857622" duration="1811000" />
+      <workItem from="1695604960562" duration="10783000" />
+      <workItem from="1695628528366" duration="1057000" />
+      <workItem from="1695629771827" duration="952000" />
     </task>
     <servers />
   </component>
@@ -548,8 +559,23 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/main.py</url>
-          <line>117</line>
-          <option name="timeStamp" value="79" />
+          <line>128</line>
+          <option name="timeStamp" value="106" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/main.py</url>
+          <line>178</line>
+          <option name="timeStamp" value="111" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/main.py</url>
+          <line>21</line>
+          <option name="timeStamp" value="113" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/MAAC_discrete_original/main.py</url>
+          <line>157</line>
+          <option name="timeStamp" value="134" />
         </line-breakpoint>
       </breakpoints>
       <default-breakpoints>
@@ -562,8 +588,10 @@
     </breakpoint-manager>
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/MAAC_baseline$main.coverage" NAME="main Coverage Results" MODIFIED="1694760748167" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/MAAC_baseline$main.coverage" NAME="main Coverage Results" MODIFIED="1695607496142" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/MAAC_baseline$main__3_.coverage" NAME="main (3) Coverage Results" MODIFIED="1695629814089" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MAAC_discrete_original" />
     <SUITE FILE_PATH="coverage/MAAC_baseline$main__1_.coverage" NAME="main (1) Coverage Results" MODIFIED="1687677505731" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MACAAC-main" />
+    <SUITE FILE_PATH="coverage/MAAC_baseline$main__2_.coverage" NAME="main (2) Coverage Results" MODIFIED="1694765020951" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MAAC-master" />
   </component>
   <component name="editorHistoryManager">
     <entry file="file://$PROJECT_DIR$/main.py">

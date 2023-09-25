@@ -34,16 +34,16 @@ def run(config):
     current_time = datetime.datetime.now()
     formatted_time = current_time.strftime("%H_%M_%S")
 
-    wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
-    wandb.init(
-        # set the wandb project where this run will be logged
-        project="MADDPG_sample_newFrameWork",
-        name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
-        # track hyperparameters and run metadata
-        config={
-            "epochs": config.n_episodes,
-        }
-    )
+    # wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
+    # wandb.init(
+    #     # set the wandb project where this run will be logged
+    #     project="MADDPG_sample_newFrameWork",
+    #     name='MADDPG_test_'+str(current_date) + '_' + str(formatted_time),
+    #     # track hyperparameters and run metadata
+    #     config={
+    #         "epochs": config.n_episodes,
+    #     }
+    # )
 
     model_dir = Path('./models') / config.env_id / config.model_name
     if not model_dir.exists():
@@ -117,20 +117,21 @@ def run(config):
                                                   to_gpu=config.use_gpu)
                     model.update_critic(sample, logger=logger)
                     model.update_policies(sample, logger=logger)
-                    model.update_all_targets()
+
+                    model.update_all_targets()  # soft update
+
                 model.prep_rollouts(device='cpu')
             # if explore_input == False:  # when evaluation, every step we need to show result
             #     time.sleep(0.02)
             #     env.render_mine()
             # time.sleep(0.02)
             # env.render()
-        ep_rews = replay_buffer.get_average_rewards(
-            config.episode_length * config.n_rollout_threads)
+        ep_rews = replay_buffer.get_average_rewards(config.episode_length * config.n_rollout_threads)
         for landmark in env.envs[0].world.landmarks:
             print("{} is at position {}".format(landmark.name, landmark.state.p_pos))
         for a_i, a_ep_rew in enumerate(ep_rews):
             logger.add_scalar('agent%i/mean_episode_rewards' % a_i, a_ep_rew * config.episode_length, ep_i)
-            wandb.log({'agent' + str(a_i) + 'mean_episode_rewards': float(a_ep_rew * config.episode_length)})
+            # wandb.log({'agent' + str(a_i) + 'mean_episode_rewards': float(a_ep_rew * config.episode_length)})
             print("agent {}, the mean episode reward is {}".format(a_i, a_ep_rew * config.episode_length))
 
         if config.mode == "train":
@@ -146,7 +147,7 @@ def run(config):
     env.close()
     logger.export_scalars_to_json(str(log_dir / 'summary.json'))
     logger.close()
-    wandb.finish()
+    # wandb.finish()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

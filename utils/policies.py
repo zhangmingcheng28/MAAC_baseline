@@ -32,6 +32,7 @@ class BasePolicy(nn.Module):
         self.fc1 = nn.Linear(input_dim + onehot_dim, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
         # self.fc3 = nn.Linear(hidden_dim, out_dim)  # this is the original
+        self.fc3_cont = nn.Sequential(nn.Linear(hidden_dim, out_dim), nn.Tanh())
         self.nonlin = nonlin
         # --------- for continuous policy ------------------
         self.log_std_min = -20
@@ -66,11 +67,12 @@ class BasePolicy(nn.Module):
         h1 = self.nonlin(self.fc1(inp))
         h2 = self.nonlin(self.fc2(h1))
         # out = self.fc3(h2)  # this is the original for discrete action space
+        out = self.fc3_cont(h2)  # this is the original for discrete action space
         # ---------- for continuous action space ----------
-        mean = self.mean_linear(h2)
-        log_std = self.log_std_linear(h2)
-        # log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
-        out = (mean, log_std)
+        # mean = self.mean_linear(h2)
+        # log_std = self.log_std_linear(h2)
+        # # log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
+        # out = (mean, log_std)
         # ---------- end for continuous action space ----------
 
         return out
@@ -88,24 +90,26 @@ class DiscretePolicy(BasePolicy):
                 return_entropy=False):
         out = super(DiscretePolicy, self).forward(obs)
         # ----- for continuous policy --------
-        mean, log_std = out
-        std = log_std.exp()
-        normal = Normal(0, 1)  # this is the re-parameterization trick
-        z = normal.sample(mean.shape)
-        action = torch.tanh(mean + std * z.to(device))
-        rets = [action]
-        if return_log_pi:
-            log_prob = Normal(mean, std).log_prob(mean + std*z.to(device)) - torch.log(1 - action.pow(2) + 1e-6)
-            log_prob = log_prob.sum(dim=-1, keepdim=True)
-            rets.append(log_prob)
-        if regularize:
-            rets.append([(mean**2).mean() + (log_std**2).mean()])
-        if return_entropy:
-            entropy = 0.5 + 0.5 * log_std.sum(dim=-1, keepdim=True) + 0.5 * mean.shape[-1] * math.log(2 * math.pi)
-            rets.append(entropy.mean())
-        if len(rets) == 1:
-            return rets[0]
-        return rets
+        # mean, log_std = out
+        # std = log_std.exp()
+        # normal = Normal(0, 1)  # this is the re-parameterization trick
+        # z = normal.sample(mean.shape)
+        # action = torch.tanh(mean + std * z.to(device))
+        # rets = [action]
+        # # rets = [out]
+        # if return_log_pi:
+        #     log_prob = Normal(mean, std).log_prob(mean + std*z.to(device)) - torch.log(1 - action.pow(2) + 1e-6)
+        #     log_prob = log_prob.sum(dim=-1, keepdim=True)
+        #     rets.append(log_prob)
+        # if regularize:
+        #     rets.append([(mean**2).mean() + (log_std**2).mean()])
+        # if return_entropy:
+        #     entropy = 0.5 + 0.5 * log_std.sum(dim=-1, keepdim=True) + 0.5 * mean.shape[-1] * math.log(2 * math.pi)
+        #     rets.append(entropy.mean())
+        # if len(rets) == 1:
+        #     return rets[0]
+        # return rets
+        return out
         # ----- end for continuous policy --------
 
         # probs = F.softmax(out, dim=1)

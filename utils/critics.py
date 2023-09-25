@@ -106,17 +106,17 @@ class AttentionCritic(nn.Module):
             agents = range(len(self.critic_encoders))
         states = [s for s, a in inps]
         actions = [a for s, a in inps]
-        inps = [torch.cat((s, a), dim=1) for s, a in inps]
+        inps = [torch.cat((s, a), dim=1) for s, a in inps]  # combine raw state and action for each agent
         # extract state-action encoding for each agent
         sa_encodings = []
-        for encoder, inp in zip(self.critic_encoders, inps):
-            one_sa = encoder(inp)
+        for encoder, inp in zip(self.critic_encoders, inps):  # there are N-seperated critic_encoders.
+            one_sa = encoder(inp)  # batch norm, linear(20, 128), leakyRelu()
             sa_encodings.append(one_sa)
         # sa_encodings = [encoder(inp) for encoder, inp in zip(self.critic_encoders, inps)]
         # extract state encoding for each agent that we're returning Q for
         s_encodings = []
         for a_i in agents:
-            one_s = self.state_encoders[a_i](states[a_i])
+            one_s = self.state_encoders[a_i](states[a_i])  # batch norm, linear(18, 128), leakyRelu()
             s_encodings.append(one_s)
         # s_encodings = [self.state_encoders[a_i](states[a_i]) for a_i in agents]
         # extract keys for each head for each agent

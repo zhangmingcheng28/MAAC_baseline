@@ -33,7 +33,7 @@ class MultiAgentEnv(gym.Env):
         # if true, even the action is continuous, action will be performed discretely
         self.force_discrete_action = world.discrete_action if hasattr(world, 'discrete_action') else False
         # if true, every agent has the same reward
-        self.shared_reward = False
+        self.shared_reward = True  # make this true so that it is same for the comparison
         self.time = 0
 
         # configure spaces
@@ -176,9 +176,9 @@ class MultiAgentEnv(gym.Env):
                     d = np.argmax(action[0])
                     action[0][:] = 0.0
                     action[0][d] = 1.0
-                # if self.discrete_action_space:
-                #     agent.action.u[0] += action[0][1] - action[0][2]
-                #     agent.action.u[1] += action[0][3] - action[0][4]
+                if self.discrete_action_space:
+                    agent.action.u[0] += action[0][1] - action[0][2]
+                    agent.action.u[1] += action[0][3] - action[0][4]
                 else:
                     agent.action.u = action[0]
             sensitivity = 5.0

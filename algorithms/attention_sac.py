@@ -85,7 +85,7 @@ class AttentionSAC(object):
         for a, obs, var_idx in zip(self.agents, observations, range(len(self.var))):
             act = a.step(obs, explore=explore)
         # ------- for no extra noise -------------
-            act = torch.clamp(act, -1.0, 1.0)
+        #     act = torch.clamp(act, -1.0, 1.0)
             outlist.append(act)
         # ------- end for no extra noise -------------
         #     if explore:
@@ -114,22 +114,27 @@ class AttentionSAC(object):
         next_acs = []
         next_log_pis = []
         for pi, ob in zip(self.target_policies, next_obs):
-            curr_next_ac, curr_next_log_pi = pi(ob, return_log_pi=True)  # pi is the target actor policy
+            # curr_next_ac, curr_next_log_pi = pi(ob, return_log_pi=True)  # pi is the target actor policy
+            curr_next_ac = pi(ob, return_log_pi=True)  # try if we just output continuous action
             next_acs.append(curr_next_ac)
-            next_log_pis.append(curr_next_log_pi)
+            # next_log_pis.append(curr_next_log_pi)
         trgt_critic_in = list(zip(next_obs, next_acs))
         critic_in = list(zip(obs, acs))
         next_qs = self.target_critic(trgt_critic_in)
         critic_rets = self.critic(critic_in, regularize=True,
                                   logger=logger, niter=self.niter)
         q_loss = 0
-        for a_i, nq, log_pi, (pq, regs) in zip(range(self.nagents), next_qs, next_log_pis, critic_rets):
+        # for a_i, nq, log_pi, (pq, regs) in zip(range(self.nagents), next_qs, next_log_pis, critic_rets):
+        #     target_q = (rews[a_i].view(-1, 1) + self.gamma * nq * (1 - dones[a_i].view(-1, 1)))
+        #     if soft:  # this is a technique that is used in SAC. Used to calculate entropy regularization term
+        #         target_q -= log_pi / self.reward_scale
+        #     q_loss += MSELoss(pq, target_q.detach())
+        #     for reg in regs:
+        #         q_loss += reg  # regularizing attention
+        # no mean and variance sampling
+        for a_i, nq, (pq, regs) in zip(range(self.nagents), next_qs, critic_rets):
             target_q = (rews[a_i].view(-1, 1) + self.gamma * nq * (1 - dones[a_i].view(-1, 1)))
-            if soft:  # this is a technique that is used in SAC. Used to calculate entropy regularization term
-                target_q -= log_pi / self.reward_scale
             q_loss += MSELoss(pq, target_q.detach())
-            for reg in regs:
-                q_loss += reg  # regularizing attention
         q_loss.backward()
         self.critic.scale_shared_grads()
         grad_norm = torch.nn.utils.clip_grad_norm(
@@ -153,12 +158,13 @@ class AttentionSAC(object):
 
         for a_i, pi, ob in zip(range(self.nagents), self.policies, obs):
             # curr_ac, probs, log_pi, pol_regs, ent = pi(ob, return_all_probs=True, return_log_pi=True, regularize=True, return_entropy=True)
-            curr_ac, log_pi, pol_regs, ent = pi(ob, return_all_probs=True, return_log_pi=True, regularize=True, return_entropy=True)
-            logger.add_scalar('agent%i/policy_entropy' % a_i, ent, self.niter)
+            # curr_ac, log_pi, pol_regs, ent = pi(ob, return_all_probs=True, return_log_pi=True, regularize=True, return_entropy=True)
+            curr_ac = pi(ob)
+            # logger.add_scalar('agent%i/policy_entropy' % a_i, ent, self.niter)
             samp_acs.append(curr_ac)
-            all_probs.append(log_pi)
+            # all_probs.append(log_pi)
             # all_log_pis.append(log_pi)
-            all_pol_regs.append(pol_regs)
+            # all_pol_regs.append(pol_regs)
 
         critic_in = list(zip(obs, samp_acs))
         critic_rets = self.critic(critic_in, return_all_q=True)  # this is for current critic NN
@@ -181,24 +187,33 @@ class AttentionSAC(object):
         # ----------- end of baseline function for advantage function with continuous action space ---------
 
         # for a_i, probs, log_pi, pol_regs, (q, all_q) in zip(range(self.nagents), all_probs, all_log_pis, all_pol_regs, critic_rets):
-        for a_i, log_pi, pol_regs, q, v in zip(range(self.nagents), all_probs, all_pol_regs, critic_rets, all_baselines):
+        # for a_i, log_pi, pol_regs, q, v in zip(range(self.nagents), all_probs, all_pol_regs, critic_rets, all_baselines):
+        # for a_i, log_pi, pol_regs, q in zip(range(self.nagents), all_probs, all_pol_regs, critic_rets):
+        for a_i, q in zip(range(self.nagents), critic_rets):
             curr_agent = self.agents[a_i]
+            # log_pi = 0.5
             # v = (all_q * probs).sum(dim=1, keepdim=True)  # this is the baseline function, or the "b"
             # pol_target = q - v
             pol_target = q
-            if soft:
-                pol_loss = (log_pi * (log_pi / self.reward_scale - pol_target).detach()).mean()
-            else:
-                pol_loss = (log_pi * (-pol_target).detach()).mean()
-            for reg in pol_regs:
-                pol_loss += 1e-3 * reg  # policy regularization
+            # if soft:
+            #     pol_loss = (log_pi * (log_pi / self.reward_scale - pol_target).detach()).mean()
+            # else:
+            #     pol_loss = (log_pi * (-pol_target).detach()).mean()
+            N = len(pol_target)
+            # Create the dummy tensor with requires_grad=True
+            dummy_tensor = torch.ones((N, 1), requires_grad=True)
+            pol_loss = (dummy_tensor*(-pol_target).detach()).mean()
+            # for reg in pol_regs:
+            #     pol_loss += 1e-3 * reg  # policy regularization
+        # for a_i, q in zip(range(self.nagents), critic_rets):
+        #     curr_agent = self.agents[a_i]
+        #     pol_loss = -q.detach().mean()
             # don't want critic to accumulate gradients from policy loss
             disable_gradients(self.critic)
             pol_loss.backward()
             enable_gradients(self.critic)
 
-            grad_norm = torch.nn.utils.clip_grad_norm(
-                curr_agent.policy.parameters(), 0.5)
+            grad_norm = torch.nn.utils.clip_grad_norm(curr_agent.policy.parameters(), 0.5)
             curr_agent.policy_optimizer.step()
             curr_agent.policy_optimizer.zero_grad()
 
