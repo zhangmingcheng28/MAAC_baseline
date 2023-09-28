@@ -47,7 +47,7 @@ class BasePolicy(nn.Module):
         self.log_std_linear.weight.data.uniform_(-init_w, init_w)
         self.log_std_linear.bias.data.uniform_(-init_w, init_w)
         # --------- end for continuous policy ------------------
-
+        self.to(device)
 
 
     def forward(self, X):

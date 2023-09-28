@@ -3,12 +3,9 @@
   <component name="ChangeListManager">
     <list default="true" id="3761216b-d21e-4e6a-beaa-bddd0948b412" name="默认" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MAAC_discrete_original/algorithms/attention_sac.py" beforeDir="false" afterPath="$PROJECT_DIR$/MAAC_discrete_original/algorithms/attention_sac.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MAAC_discrete_original/utils/critics.py" beforeDir="false" afterPath="$PROJECT_DIR$/MAAC_discrete_original/utils/critics.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MAAC_discrete_original/utils/misc.py" beforeDir="false" afterPath="$PROJECT_DIR$/MAAC_discrete_original/utils/misc.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MAAC_discrete_original/utils/policies.py" beforeDir="false" afterPath="$PROJECT_DIR$/MAAC_discrete_original/utils/policies.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/algorithms/attention_sac.py" beforeDir="false" afterPath="$PROJECT_DIR$/algorithms/attention_sac.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils/make_env.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/make_env.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/utils/policies.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/policies.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -46,6 +43,9 @@
   <component name="JsGulpfileManager">
     <detection-done>true</detection-done>
     <sorting>DEFINITION_ORDER</sorting>
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
   </component>
   <component name="ProjectFrameBounds">
     <option name="x" value="-24" />
@@ -222,14 +222,13 @@
     <option name="showLibraryContents" value="true" />
     <option name="showMembers" value="true" />
   </component>
-  <component name="PropertiesComponent">
-    <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
-    <property name="WebServerToolWindowFactoryState" value="false" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/../Multi_agent_AAC" />
-    <property name="node.js.detected.package.eslint" value="true" />
-    <property name="node.js.selected.package.eslint" value="(autodetect)" />
-    <property name="settings.editor.selected.configurable" value="preferences.pluginManager" />
-  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "WebServerToolWindowFactoryState": "false",
+    "last_opened_file_path": "D:/MAAC_baseline",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
+  }
+}]]></component>
   <component name="RunManager" selected="Python.main">
     <configuration default="true" type="PyLettuceRunConfigurationType" factoryName="Lettuce">
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -467,11 +466,11 @@
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.make_env" />
         <item itemvalue="Python.main (3)" />
         <item itemvalue="Python.main (2)" />
         <item itemvalue="Python.main (1)" />
         <item itemvalue="Python.environment (1)" />
-        <item itemvalue="Python.make_env" />
       </list>
     </recent_temporary>
   </component>
@@ -493,6 +492,7 @@
       <workItem from="1695370857622" duration="1811000" />
       <workItem from="1695604960562" duration="10783000" />
       <workItem from="1695628528366" duration="30153000" />
+      <workItem from="1695865020062" duration="4854000" />
     </task>
     <servers />
   </component>
@@ -525,6 +525,17 @@
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
       <breakpoints>
@@ -548,6 +559,11 @@
           <line>157</line>
           <option name="timeStamp" value="134" />
         </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/main.py</url>
+          <line>156</line>
+          <option name="timeStamp" value="154" />
+        </line-breakpoint>
       </breakpoints>
       <default-breakpoints>
         <breakpoint type="python-exception">
@@ -559,10 +575,11 @@
     </breakpoint-manager>
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/MAAC_baseline$main__3_.coverage" NAME="main (3) Coverage Results" MODIFIED="1695629170398" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MAAC_discrete_original" />
-    <SUITE FILE_PATH="coverage/MAAC_baseline$main.coverage" NAME="main Coverage Results" MODIFIED="1695799694184" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/MAAC_baseline$main__1_.coverage" NAME="main (1) Coverage Results" MODIFIED="1687677505731" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MACAAC-main" />
     <SUITE FILE_PATH="coverage/MAAC_baseline$main__2_.coverage" NAME="main (2) Coverage Results" MODIFIED="1694765020951" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MAAC-master" />
+    <SUITE FILE_PATH="coverage/MAAC_baseline$main__3_.coverage" NAME="main (3) Coverage Results" MODIFIED="1695629170398" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MAAC_discrete_original" />
+    <SUITE FILE_PATH="coverage/MAAC_baseline$make_env.coverage" NAME="make_env Coverage Results" MODIFIED="1695868154375" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/utils" />
+    <SUITE FILE_PATH="coverage/MAAC_baseline$main__1_.coverage" NAME="main (1) Coverage Results" MODIFIED="1687677505731" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/MACAAC-main" />
+    <SUITE FILE_PATH="coverage/MAAC_baseline$main.coverage" NAME="main Coverage Results" MODIFIED="1695870889746" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
   <component name="editorHistoryManager">
     <entry file="file://$PROJECT_DIR$/main.py">

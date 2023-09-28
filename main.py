@@ -13,7 +13,12 @@ from utils.env_wrappers import SubprocVecEnv, DummyVecEnv
 import time
 from algorithms.attention_sac import AttentionSAC
 
-
+# Set the default device to GPU if available, else CPU
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+if torch.cuda.is_available():
+    torch.set_default_tensor_type(torch.cuda.FloatTensor)
+else:
+    torch.set_default_tensor_type(torch.FloatTensor)
 def make_parallel_env(env_id, n_rollout_threads, seed):
     def get_env_fn(rank):
         def init_env():
@@ -70,7 +75,7 @@ def run(config):
     wandb.init(
         # set the wandb project where this run will be logged
         project="MADDPG_sample_newFrameWork",
-        name='MAAC_C_SS3_test_'+str(current_date) + '_' + str(formatted_time),
+        name='MAAC_D_gpu_SS3_test_'+str(current_date) + '_' + str(formatted_time),
         # track hyperparameters and run metadata
         config={
             "epochs": config.n_episodes,
@@ -123,16 +128,16 @@ def run(config):
                                         ep_i + 1 + config.n_rollout_threads,
                                         config.n_episodes))
         obs = env.reset()
-        model.prep_rollouts(device='cpu')
+        model.prep_rollouts(device=device)
         ep_acc_rws = 0
-
+        eps_start_time = time.time()
         for et_i in range(config.episode_length):  # start of an step in the episode
             # rearrange observations to be per agent, and convert to torch Variable
             torch_obs = [Variable(torch.Tensor(np.vstack(obs[:, i])), requires_grad=False) for i in range(model.nagents)]
             # get actions as torch Variables
             torch_agent_actions = model.step(torch_obs, ep_i, explore=explore_input)
             # convert actions to numpy arrays
-            agent_actions = [ac.data.numpy() for ac in torch_agent_actions]
+            agent_actions = [ac.data.numpy() if device=='cpu' else ac.data.cpu().numpy() for ac in torch_agent_actions]
             # rearrange actions to be per environment
             actions = [[ac[i] for ac in agent_actions] for i in range(config.n_rollout_threads)]
             next_obs, rewards, dones, infos = env.step(actions)
@@ -147,7 +152,7 @@ def run(config):
             if (len(replay_buffer) >= config.batch_size and
                 (t % config.steps_per_update) < config.n_rollout_threads):
                 if config.use_gpu:
-                    model.prep_training(device='gpu')
+                    model.prep_training(device=device)
                 else:
                     model.prep_training(device='cpu')
                 for u_i in range(config.num_updates):
@@ -158,7 +163,7 @@ def run(config):
 
                     model.update_all_targets()  # soft update
 
-                model.prep_rollouts(device='cpu')
+                model.prep_rollouts(device=device)
             # if explore_input == False:  # when evaluation, every step we need to show result
             #     time.sleep(0.02)
             #     env.render_mine()
@@ -173,8 +178,10 @@ def run(config):
         #     # wandb.log({'agent' + str(a_i) + 'mean_episode_rewards': float(a_ep_rew * config.episode_length)})
         #     print("agent {}, the mean episode reward is {}".format(a_i, a_ep_rew * config.episode_length))
 
-        print("accumulated episode reward is {}".format(ep_acc_rws))
+        eps_end = time.time() - eps_start_time
+        print("accumulated episode reward is {}, time used is {} seconds".format(ep_acc_rws, eps_end))
         wandb.log({'episode_rewards': float(ep_acc_rws)})
+
 
         if config.mode == "train":
             if ep_i % config.save_interval == 0:
@@ -217,7 +224,7 @@ if __name__ == '__main__':
     parser.add_argument("--tau", default=0.001, type=float)
     parser.add_argument("--gamma", default=0.95, type=float)
     parser.add_argument("--reward_scale", default=100., type=float)  # was 100
-    parser.add_argument("--use_gpu", action='store_true')
+    parser.add_argument("--use_gpu", default="True", action='store_true')
 
     config = parser.parse_args()
 

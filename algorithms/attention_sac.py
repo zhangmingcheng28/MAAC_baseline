@@ -9,6 +9,8 @@ import numpy as np
 import time
 
 MSELoss = torch.nn.MSELoss()
+use_cuda = torch.cuda.is_available()
+device = torch.device("cuda" if use_cuda else "cpu")
 
 class AttentionSAC(object):
     """
@@ -56,10 +58,10 @@ class AttentionSAC(object):
         self.pi_lr = pi_lr
         self.q_lr = q_lr
         self.reward_scale = reward_scale
-        self.pol_dev = 'cpu'  # device for policies
-        self.critic_dev = 'cpu'  # device for critics
-        self.trgt_pol_dev = 'cpu'  # device for target policies
-        self.trgt_critic_dev = 'cpu'  # device for target critics
+        self.pol_dev = device  # device for policies
+        self.critic_dev = device  # device for critics
+        self.trgt_pol_dev = device  # device for target policies
+        self.trgt_critic_dev = device  # device for target critics
         self.niter = 0
 
         self.var = [1.0 for i in range(len(agent_init_params))]  # added for con act space
@@ -279,7 +281,7 @@ class AttentionSAC(object):
         """
         Save trained parameters of all agents into one file
         """
-        self.prep_training(device='cpu')  # move parameters to CPU before saving
+        self.prep_training(device=device)  # move parameters to CPU before saving
         save_dict = {'init_dict': self.init_dict,
                      'agent_params': [a.get_params() for a in self.agents],
                      'critic_params': {'critic': self.critic.state_dict(),
