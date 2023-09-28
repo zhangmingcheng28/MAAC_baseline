@@ -98,7 +98,7 @@ def firmmax_sample(logits, temperature, dim=1):
     return F.softmax(y, dim=dim)
 
 def categorical_sample(probs, use_cuda=False):
-    int_acs = torch.multinomial(probs, 1)
+    int_acs = torch.multinomial(probs, 1)  # sample actions based on the probability of choosing each action given by "probs"
     if use_cuda:
         tensor_type = torch.cuda.FloatTensor
     else:

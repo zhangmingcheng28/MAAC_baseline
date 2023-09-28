@@ -115,14 +115,13 @@ class AttentionSAC(object):
         next_log_pis = []
         for pi, ob in zip(self.target_policies, next_obs):
             # curr_next_ac, curr_next_log_pi = pi(ob, return_log_pi=True)  # pi is the target actor policy
-            curr_next_ac = pi(ob, return_log_pi=True)  # try if we just output continuous action
+            curr_next_ac, curr_next_log_pi = pi(ob, return_log_pi=True)  # try if we just output continuous action
             next_acs.append(curr_next_ac)
-            # next_log_pis.append(curr_next_log_pi)
+            next_log_pis.append(curr_next_log_pi)
         trgt_critic_in = list(zip(next_obs, next_acs))
         critic_in = list(zip(obs, acs))
         next_qs = self.target_critic(trgt_critic_in)
-        critic_rets = self.critic(critic_in, regularize=True,
-                                  logger=logger, niter=self.niter)
+        critic_rets = self.critic(critic_in, regularize=True, logger=logger, niter=self.niter)
         q_loss = 0
         # for a_i, nq, log_pi, (pq, regs) in zip(range(self.nagents), next_qs, next_log_pis, critic_rets):
         #     target_q = (rews[a_i].view(-1, 1) + self.gamma * nq * (1 - dones[a_i].view(-1, 1)))
@@ -131,97 +130,102 @@ class AttentionSAC(object):
         #     q_loss += MSELoss(pq, target_q.detach())
         #     for reg in regs:
         #         q_loss += reg  # regularizing attention
-        # no mean and variance sampling
-        for a_i, nq, (pq, regs) in zip(range(self.nagents), next_qs, critic_rets):
+
+        # no regularizing for attention critic output loss or the Q loss.
+        for a_i, nq, log_pi, (pq, regs) in zip(range(self.nagents), next_qs, next_log_pis, critic_rets):
             target_q = (rews[a_i].view(-1, 1) + self.gamma * nq * (1 - dones[a_i].view(-1, 1)))
+            if soft:
+                target_q -= log_pi / self.reward_scale
+            # q_loss = q_loss + MSELoss(pq, target_q.detach())
             q_loss += MSELoss(pq, target_q.detach())
         q_loss.backward()
-        self.critic.scale_shared_grads()
-        grad_norm = torch.nn.utils.clip_grad_norm(
-            self.critic.parameters(), 10 * self.nagents)
+        # self.critic.scale_shared_grads()
+        # grad_norm = torch.nn.utils.clip_grad_norm(self.critic.parameters(), 10 * self.nagents)
         self.critic_optimizer.step()
         self.critic_optimizer.zero_grad()
 
-        if logger is not None:
-            logger.add_scalar('losses/q_loss', q_loss, self.niter)
-            logger.add_scalar('grad_norms/q', grad_norm, self.niter)
+        # if logger is not None:
+        #     logger.add_scalar('losses/q_loss', q_loss, self.niter)
+        #     logger.add_scalar('grad_norms/q', grad_norm, self.niter)
         self.niter += 1
 
     def update_policies(self, sample, soft=True, logger=None, **kwargs):
-        soft = False
+        # soft = False
         obs, acs, rews, next_obs, dones = sample
         samp_acs = []
-        all_probs = []
-        # all_log_pis = []
+        # all_probs = []  # this is not possible to exist for continuous action as there are unlimited number of action exist
+        all_log_pis = []
         all_pol_regs = []
         all_baselines = []
 
         for a_i, pi, ob in zip(range(self.nagents), self.policies, obs):
             # curr_ac, probs, log_pi, pol_regs, ent = pi(ob, return_all_probs=True, return_log_pi=True, regularize=True, return_entropy=True)
             # curr_ac, log_pi, pol_regs, ent = pi(ob, return_all_probs=True, return_log_pi=True, regularize=True, return_entropy=True)
-            curr_ac = pi(ob)
+            curr_ac, log_pi = pi(ob, return_log_pi=True)
             # logger.add_scalar('agent%i/policy_entropy' % a_i, ent, self.niter)
             samp_acs.append(curr_ac)
             # all_probs.append(log_pi)
-            # all_log_pis.append(log_pi)
+            all_log_pis.append(log_pi)
             # all_pol_regs.append(pol_regs)
 
         critic_in = list(zip(obs, samp_acs))
-        critic_rets = self.critic(critic_in, return_all_q=True)  # this is for current critic NN
+        critic_rets = self.critic(critic_in)  # this is for current critic NN
 
         # ----------- baseline function for advantage function with continuous action space ---------
-        # curT = time.time()
-        # for a_i, pi, cur_obs in zip(range(self.nagents), self.policies, obs):
-        #     sampled_Q = []
-        #     act_clone = copy.deepcopy(acs)
-        #     for _ in range(100):  # we sample an action for 100 times for individual agent
-        #         sampled_action = pi(cur_obs)
-        #         act_clone[a_i] = sampled_action # replace the action from experience replay with the sampled_action from the policy.
-        #         sample_critic_in = list(zip(obs, act_clone))
-        #         sampled_Q_all = self.critic(sample_critic_in)
-        #         sampled_Q.append(sampled_Q_all[a_i])
-        #     baseline_expect_Q = torch.mean(torch.stack(sampled_Q))
-        #     all_baselines.append(baseline_expect_Q)
-        #     endT = time.time()-curT
-        #     print("when sample 100 times, the time take is {} seconds".format(endT))
+        curT = time.time()
+        for a_i, pi, cur_obs in zip(range(self.nagents), self.policies, obs):
+            sampled_Q = []
+            act_clone = copy.deepcopy(acs)
+            for _ in range(10):  # we sample an action for 100 times for individual agent
+                sampled_action = pi(cur_obs).detach()
+                act_clone[a_i] = sampled_action # replace the action from experience replay with the sampled_action from the policy.
+                sample_critic_in = list(zip(obs, act_clone))
+                sampled_Q_all = self.critic(sample_critic_in)
+                sampled_Q.append(sampled_Q_all[a_i])
+            baseline_expect_Q = torch.mean(torch.stack(sampled_Q))
+            all_baselines.append(baseline_expect_Q)
+        endT = time.time()-curT
+        # print("when sample 10 times, the time take is {} seconds".format(endT))
         # ----------- end of baseline function for advantage function with continuous action space ---------
 
         # for a_i, probs, log_pi, pol_regs, (q, all_q) in zip(range(self.nagents), all_probs, all_log_pis, all_pol_regs, critic_rets):
-        # for a_i, log_pi, pol_regs, q, v in zip(range(self.nagents), all_probs, all_pol_regs, critic_rets, all_baselines):
         # for a_i, log_pi, pol_regs, q in zip(range(self.nagents), all_probs, all_pol_regs, critic_rets):
-        for a_i, q in zip(range(self.nagents), critic_rets):
+        for a_i, log_pi, q, v in zip(range(self.nagents), all_log_pis, critic_rets, all_baselines):
             curr_agent = self.agents[a_i]
-            # log_pi = 0.5
             # v = (all_q * probs).sum(dim=1, keepdim=True)  # this is the baseline function, or the "b"
-            # pol_target = q - v
-            pol_target = q
-            # if soft:
-            #     pol_loss = (log_pi * (log_pi / self.reward_scale - pol_target).detach()).mean()
-            # else:
-            #     pol_loss = (log_pi * (-pol_target).detach()).mean()
-            N = len(pol_target)
+            pol_target = q - v
+            # pol_target = q
+            if soft:
+                pol_loss = (log_pi * (log_pi / self.reward_scale - pol_target).detach()).mean()
+            else:
+                pol_loss = (log_pi * (-pol_target).detach()).mean()
+
             # Create the dummy tensor with requires_grad=True
-            dummy_tensor = torch.ones((N, 1), requires_grad=True)
-            pol_loss = (dummy_tensor*(-pol_target).detach()).mean()
+            # N = len(pol_target)
+            # dummy_tensor = torch.ones((N, 1), requires_grad=True)
+            # pol_loss = (dummy_tensor*(-pol_target).detach()).mean()
+
             # for reg in pol_regs:
             #     pol_loss += 1e-3 * reg  # policy regularization
+
         # for a_i, q in zip(range(self.nagents), critic_rets):
         #     curr_agent = self.agents[a_i]
         #     pol_loss = -q.detach().mean()
+
             # don't want critic to accumulate gradients from policy loss
             disable_gradients(self.critic)
             pol_loss.backward()
             enable_gradients(self.critic)
 
-            grad_norm = torch.nn.utils.clip_grad_norm(curr_agent.policy.parameters(), 0.5)
+            # grad_norm = torch.nn.utils.clip_grad_norm(curr_agent.policy.parameters(), 0.5)
             curr_agent.policy_optimizer.step()
             curr_agent.policy_optimizer.zero_grad()
 
-            if logger is not None:
-                logger.add_scalar('agent%i/losses/pol_loss' % a_i,
-                                  pol_loss, self.niter)
-                logger.add_scalar('agent%i/grad_norms/pi' % a_i,
-                                  grad_norm, self.niter)
+            # if logger is not None:
+            #     logger.add_scalar('agent%i/losses/pol_loss' % a_i,
+            #                       pol_loss, self.niter)
+            #     logger.add_scalar('agent%i/grad_norms/pi' % a_i,
+            #                       grad_norm, self.niter)
 
 
     def update_all_targets(self):

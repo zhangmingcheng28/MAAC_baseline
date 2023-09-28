@@ -93,23 +93,18 @@ class AttentionSAC(object):
         trgt_critic_in = list(zip(next_obs, next_acs))
         critic_in = list(zip(obs, acs))
         next_qs = self.target_critic(trgt_critic_in)
-        critic_rets = self.critic(critic_in, regularize=True,
-                                  logger=logger, niter=self.niter)
+        critic_rets = self.critic(critic_in, regularize=True, logger=logger, niter=self.niter)
         q_loss = 0
-        for a_i, nq, log_pi, (pq, regs) in zip(range(self.nagents), next_qs,
-                                               next_log_pis, critic_rets):
-            target_q = (rews[a_i].view(-1, 1) +
-                        self.gamma * nq *
-                        (1 - dones[a_i].view(-1, 1)))
-            if soft:
+        for a_i, nq, log_pi, (pq, regs) in zip(range(self.nagents), next_qs, next_log_pis, critic_rets):
+            target_q = (rews[a_i].view(-1, 1) + self.gamma * nq * (1 - dones[a_i].view(-1, 1)))
+            if soft:  # entropy regularization term
                 target_q -= log_pi / self.reward_scale
             q_loss += MSELoss(pq, target_q.detach())
             for reg in regs:
                 q_loss += reg  # regularizing attention
         q_loss.backward()
         self.critic.scale_shared_grads()
-        grad_norm = torch.nn.utils.clip_grad_norm(
-            self.critic.parameters(), 10 * self.nagents)
+        grad_norm = torch.nn.utils.clip_grad_norm(self.critic.parameters(), 10 * self.nagents)
         self.critic_optimizer.step()
         self.critic_optimizer.zero_grad()
 
@@ -143,7 +138,8 @@ class AttentionSAC(object):
                                                             critic_rets):
             curr_agent = self.agents[a_i]
             v = (all_q * probs).sum(dim=1, keepdim=True)
-            pol_target = q - v
+            # pol_target = q - v
+            pol_target = q
             if soft:
                 pol_loss = (log_pi * (log_pi / self.reward_scale - pol_target).detach()).mean()
             else:

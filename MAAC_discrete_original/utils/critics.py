@@ -146,7 +146,7 @@ class AttentionCritic(nn.Module):
                                .mean()) for probs in all_attend_probs[i]]
             agent_rets = []
             critic_in = torch.cat((s_encodings[i], *other_all_values[i]), dim=1)
-            all_q = self.critics[a_i](critic_in)
+            all_q = self.critics[a_i](critic_in)  # this is the last layer of MLP
             int_acs = actions[a_i].max(dim=1, keepdim=True)[1]
             q = all_q.gather(1, int_acs)
             if return_q:

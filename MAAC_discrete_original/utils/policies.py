@@ -70,7 +70,7 @@ class DiscretePolicy(BasePolicy):
         if return_all_probs:
             rets.append(probs)
         if return_log_pi:
-            # return log probability of selected action
+            # return log probability of selected action based on "int_act"
             rets.append(log_probs.gather(1, int_act))
         if regularize:
             rets.append([(out**2).mean()])
