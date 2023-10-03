@@ -43,7 +43,7 @@ def reward_from_state(n_state, all_agents):
         obs_landmark = np.array(state[4:10])
         agent_reward = 0
         potential_other = []
-        for i in range(3):
+        for i in range(len(all_agents)):
 
             sub_obs = obs_landmark[i*2: i*2+2]
             dist = np.sqrt(sub_obs[0]**2 + sub_obs[1]**2)
@@ -52,13 +52,14 @@ def reward_from_state(n_state, all_agents):
             if dist < 0.2: agent_reward += 0.5
             if dist < 0.1: agent_reward += 1.
 
-        otherA = np.array(state[10:12])  # original
-        otherB = np.array(state[12:14])  # original
+        if len(all_agents) > 1:
+            otherA = np.array(state[10:12])  # original
+            otherB = np.array(state[12:14])  # original
 
-        dist = np.sqrt(otherA[0] ** 2 + otherA[1] ** 2)
-        if dist < 3.1:  agent_reward -= 0.25
-        dist = np.sqrt(otherB[0] ** 2 + otherB[1] ** 2)
-        if dist < 3.1:  agent_reward -= 0.25
+            dist = np.sqrt(otherA[0] ** 2 + otherA[1] ** 2)
+            if dist < 3.1:  agent_reward -= 0.25
+            dist = np.sqrt(otherB[0] ** 2 + otherB[1] ** 2)
+            if dist < 3.1:  agent_reward -= 0.25
 
         rew.append(agent_reward)
 
@@ -75,7 +76,7 @@ def run(config):
     wandb.init(
         # set the wandb project where this run will be logged
         project="MADDPG_sample_newFrameWork",
-        name='MAAC_D_gpu_SS3_test_'+str(current_date) + '_' + str(formatted_time),
+        name='MAAC_C_gpu_SS3_test_'+str(current_date) + '_' + str(formatted_time),
         # track hyperparameters and run metadata
         config={
             "epochs": config.n_episodes,

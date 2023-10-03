@@ -11,8 +11,15 @@ from utils.buffer import ReplayBuffer
 from utils.env_wrappers import SubprocVecEnv, DummyVecEnv
 from algorithms.attention_sac import AttentionSAC
 import wandb
+import time
 import datetime
 
+# Set the default device to GPU if available, else CPU
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+if torch.cuda.is_available():
+    torch.set_default_tensor_type(torch.cuda.FloatTensor)
+else:
+    torch.set_default_tensor_type(torch.FloatTensor)
 
 def make_parallel_env(env_id, n_rollout_threads, seed):
     def get_env_fn(rank):
@@ -84,7 +91,7 @@ def run(config):
     wandb.init(
         # set the wandb project where this run will be logged
         project="MADDPG_sample_newFrameWork",
-        name='MAAC_D_SS3_test_'+str(current_date) + '_' + str(formatted_time),
+        name='MAAC_D_gpu_SS3_test_'+str(current_date) + '_' + str(formatted_time),
         # track hyperparameters and run metadata
         config={
             "epochs": config.n_episodes,
@@ -130,9 +137,9 @@ def run(config):
                                         ep_i + 1 + config.n_rollout_threads,
                                         config.n_episodes))
         obs = env.reset()
-        model.prep_rollouts(device='cpu')
+        model.prep_rollouts(device=device)
         ep_acc_rws = 0
-
+        eps_start_time = time.time()
         for et_i in range(config.episode_length):
             # rearrange observations to be per agent, and convert to torch Variable
             torch_obs = [Variable(torch.Tensor(np.vstack(obs[:, i])),
@@ -141,7 +148,7 @@ def run(config):
             # get actions as torch Variables
             torch_agent_actions = model.step(torch_obs, explore=True)
             # convert actions to numpy arrays
-            agent_actions = [ac.data.numpy() for ac in torch_agent_actions]
+            agent_actions = [ac.data.numpy() if device=='cpu' else ac.data.cpu().numpy() for ac in torch_agent_actions]
             # rearrange actions to be per environment
             actions = [[ac[i] for ac in agent_actions] for i in range(config.n_rollout_threads)]
             next_obs, rewards, dones, infos = env.step(actions)
@@ -156,22 +163,23 @@ def run(config):
             t += config.n_rollout_threads
             if (len(replay_buffer) >= config.batch_size and (t % config.steps_per_update) < config.n_rollout_threads):
                 if config.use_gpu:
-                    model.prep_training(device='gpu')
+                    model.prep_training(device=device)
                 else:
-                    model.prep_training(device='cpu')
+                    model.prep_training(device=device)
                 for u_i in range(config.num_updates):
                     sample = replay_buffer.sample(config.batch_size,
                                                   to_gpu=config.use_gpu)
                     model.update_critic(sample, logger=logger)
                     model.update_policies(sample, logger=logger)
                     model.update_all_targets()
-                model.prep_rollouts(device='cpu')
+                model.prep_rollouts(device=device)
             ep_acc_rws = ep_acc_rws + sum(rewards[0])  # must sum(rewards[0]), because rewards is (1x3) not (3,) in shape
         # ep_rews = replay_buffer.get_average_rewards(config.episode_length * config.n_rollout_threads)
 
         # for a_i, a_ep_rew in enumerate(ep_acc_rws):
         #     logger.add_scalar('agent%i/mean_episode_rewards' % a_i, a_ep_rew * config.episode_length, ep_i)
-        print("accumulated episode reward is {}".format(ep_acc_rws))
+        eps_end = time.time() - eps_start_time
+        print("accumulated episode reward is {}, time used is {} seconds".format(ep_acc_rws, eps_end))
         wandb.log({'episode_rewards': float(ep_acc_rws)})
 
         # if ep_i % config.save_interval < config.n_rollout_threads:
@@ -208,7 +216,7 @@ if __name__ == '__main__':
     parser.add_argument("--q_lr", default=0.001, type=float)  # critic lr, was 0.001
     parser.add_argument("--tau", default=0.001, type=float)
     parser.add_argument("--gamma", default=0.95, type=float)  # was 0.99
-    parser.add_argument("--reward_scale", default=100., type=float)
+    parser.add_argument("--reward_scale", default=1., type=float)
     parser.add_argument("--use_gpu", action='store_true')
 
     config = parser.parse_args()

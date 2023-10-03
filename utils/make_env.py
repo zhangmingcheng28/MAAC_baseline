@@ -32,7 +32,8 @@ def make_env(scenario_name, benchmark=False, discrete_action=False):
     '''
     from multiagent.environment import MultiAgentEnv
     import multiagent.scenarios as old_scenarios
-    import envs.mpe_scenarios as new_scenarios
+    # import envs.mpe_scenarios as new_scenarios
+    import multiagent.scenarios as new_scenarios
 
     # load scenario from script
     try:
