@@ -140,6 +140,8 @@ class AttentionSAC(object):
                 target_q -= log_pi / self.reward_scale
             # q_loss = q_loss + MSELoss(pq, target_q.detach())
             q_loss += MSELoss(pq, target_q.detach())
+            for reg in regs:
+                q_loss += reg  # regularizing attention
         q_loss.backward()
         # self.critic.scale_shared_grads()
         # grad_norm = torch.nn.utils.clip_grad_norm(self.critic.parameters(), 10 * self.nagents)
@@ -163,40 +165,40 @@ class AttentionSAC(object):
         for a_i, pi, ob in zip(range(self.nagents), self.policies, obs):
             # curr_ac, probs, log_pi, pol_regs, ent = pi(ob, return_all_probs=True, return_log_pi=True, regularize=True, return_entropy=True)
             # curr_ac, log_pi, pol_regs, ent = pi(ob, return_all_probs=True, return_log_pi=True, regularize=True, return_entropy=True)
-            curr_ac, log_pi = pi(ob, return_log_pi=True)
+            curr_ac, log_pi, pol_regs = pi(ob, return_log_pi=True, regularize=True)
             # logger.add_scalar('agent%i/policy_entropy' % a_i, ent, self.niter)
             samp_acs.append(curr_ac)
             # all_probs.append(log_pi)
             all_log_pis.append(log_pi)
-            # all_pol_regs.append(pol_regs)
+            all_pol_regs.append(pol_regs)
 
         critic_in = list(zip(obs, samp_acs))
         critic_rets = self.critic(critic_in)  # this is for current critic NN
 
         # ----------- baseline function for advantage function with continuous action space ---------
-        curT = time.time()
-        for a_i, pi, cur_obs in zip(range(self.nagents), self.policies, obs):
-            sampled_Q = []
-            act_clone = copy.deepcopy(acs)
-            for _ in range(10):  # we sample an action for 100 times for individual agent
-                sampled_action = pi(cur_obs).detach()
-                act_clone[a_i] = sampled_action # replace the action from experience replay with the sampled_action from the policy.
-                sample_critic_in = list(zip(obs, act_clone))
-                sampled_Q_all = self.critic(sample_critic_in)
-                sampled_Q.append(sampled_Q_all[a_i])
-            baseline_expect_Q = torch.mean(torch.stack(sampled_Q))
-            all_baselines.append(baseline_expect_Q)
-        endT = time.time()-curT
+        # curT = time.time()
+        # for a_i, pi, cur_obs in zip(range(self.nagents), self.policies, obs):
+        #     sampled_Q = []
+        #     act_clone = copy.deepcopy(acs)
+        #     for _ in range(10):  # we sample an action for 100 times for individual agent
+        #         sampled_action = pi(cur_obs).detach()
+        #         act_clone[a_i] = sampled_action # replace the action from experience replay with the sampled_action from the policy.
+        #         sample_critic_in = list(zip(obs, act_clone))
+        #         sampled_Q_all = self.critic(sample_critic_in)
+        #         sampled_Q.append(sampled_Q_all[a_i])
+        #     baseline_expect_Q = torch.mean(torch.stack(sampled_Q))
+        #     all_baselines.append(baseline_expect_Q)
+        # endT = time.time()-curT
         # print("when sample 10 times, the time take is {} seconds".format(endT))
         # ----------- end of baseline function for advantage function with continuous action space ---------
 
         # for a_i, probs, log_pi, pol_regs, (q, all_q) in zip(range(self.nagents), all_probs, all_log_pis, all_pol_regs, critic_rets):
-        # for a_i, log_pi, pol_regs, q in zip(range(self.nagents), all_probs, all_pol_regs, critic_rets):
-        for a_i, log_pi, q, v in zip(range(self.nagents), all_log_pis, critic_rets, all_baselines):
+        for a_i, log_pi, pol_regs, q in zip(range(self.nagents), all_log_pis, all_pol_regs, critic_rets):
+        # for a_i, log_pi, q, v in zip(range(self.nagents), all_log_pis, critic_rets, all_baselines):
             curr_agent = self.agents[a_i]
             # v = (all_q * probs).sum(dim=1, keepdim=True)  # this is the baseline function, or the "b"
-            pol_target = q - v
-            # pol_target = q
+            # pol_target = q - v
+            pol_target = q
             if soft:
                 pol_loss = (log_pi * (log_pi / self.reward_scale - pol_target).detach()).mean()
             else:
@@ -207,8 +209,8 @@ class AttentionSAC(object):
             # dummy_tensor = torch.ones((N, 1), requires_grad=True)
             # pol_loss = (dummy_tensor*(-pol_target).detach()).mean()
 
-            # for reg in pol_regs:
-            #     pol_loss += 1e-3 * reg  # policy regularization
+            for reg in pol_regs:
+                pol_loss += 1e-3 * reg  # policy regularization
 
         # for a_i, q in zip(range(self.nagents), critic_rets):
         #     curr_agent = self.agents[a_i]

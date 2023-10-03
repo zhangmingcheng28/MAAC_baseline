@@ -99,11 +99,11 @@ class DiscretePolicy(BasePolicy):
         # # rets = [out]
         if return_log_pi:
             log_prob = Normal(mean, std).log_prob(mean + std*z.to(device)) - torch.log(1 - action.pow(2) + 1e-6)
-            # log_prob = Normal(mean, std).log_prob(mean + std*z.to(device)) - torch.log(1 - action.pow(2) + 1e-6) - torch.log(torch.tensor(5))
             log_prob = log_prob.sum(dim=-1, keepdim=True)  # required for multi-dimensional continuous action space, sum action prob across entire action vector
             rets.append(log_prob)
         if regularize:
             rets.append([(mean**2).mean() + (log_std**2).mean()])
+            # rets.append([(mean**2).mean()])
         if return_entropy:
             entropy = 0.5 + 0.5 * log_std.sum(dim=-1, keepdim=True) + 0.5 * mean.shape[-1] * math.log(2 * math.pi)
             rets.append(entropy.mean())
