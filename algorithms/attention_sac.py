@@ -83,20 +83,20 @@ class AttentionSAC(object):
         """
         # ---------- added for con act space-------------
         outlist = []
-        for var_idx, var in enumerate(self.var):
-            print("Current episode {}, agent {} var is {}".format(ep_i, var_idx, var))
+        # for var_idx, var in enumerate(self.var):
+        #     print("Current episode {}, agent {} var is {}".format(ep_i, var_idx, var))
         for a, obs, var_idx in zip(self.agents, observations, range(len(self.var))):
             act = a.step(obs, explore=explore)
         # ------- for no extra noise -------------
         #     act = torch.clamp(act, -1.0, 1.0)
             outlist.append(act)
         # ------- end for no extra noise -------------
-            if explore:
-                act = act + torch.from_numpy(np.random.randn(2) * self.var[var_idx])
-                if self.var[var_idx] > 0.05:
-                    self.var[var_idx] = self.var[var_idx] * 0.999998
-                act = torch.clamp(act, -1.0, 1.0)
-            outlist.append(act)
+        #     if explore:
+        #         act = act + torch.from_numpy(np.random.randn(2) * self.var[var_idx])
+        #         if self.var[var_idx] > 0.05:
+        #             self.var[var_idx] = self.var[var_idx] * 0.999998
+        #         act = torch.clamp(act, -1.0, 1.0)
+        #     outlist.append(act)
 
         return outlist
         # end of adding for con act space --------------------
