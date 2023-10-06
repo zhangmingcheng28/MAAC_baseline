@@ -12,8 +12,7 @@ class BasePolicy(nn.Module):
     """
     Base policy network
     """
-    def __init__(self, input_dim, out_dim, hidden_dim=64, nonlin=F.leaky_relu,
-                 norm_in=True, onehot_dim=0):
+    def __init__(self, input_dim, out_dim, hidden_dim=64, nonlin=F.relu, norm_in=False, onehot_dim=0):
         """
         Inputs:
             input_dim (int): Number of dimensions in input
@@ -32,20 +31,20 @@ class BasePolicy(nn.Module):
         self.fc1 = nn.Linear(input_dim + onehot_dim, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
         # self.fc3 = nn.Linear(hidden_dim, out_dim)  # this is the original
-        # self.fc3_cont = nn.Sequential(nn.Linear(hidden_dim, out_dim), nn.Tanh())
+        self.fc3_cont = nn.Sequential(nn.Linear(hidden_dim, out_dim), nn.Tanh())
         self.nonlin = nonlin
         # --------- for continuous policy ------------------
-        self.log_std_min = -20
-        self.log_std_max = 2
-        self.mean_linear = nn.Linear(hidden_dim, out_dim)
-        self.mean_linear.weight.data.uniform_(-init_w, init_w)
-        self.mean_linear.bias.data.uniform_(-init_w, init_w)
-
-        # parameterizing in terms of log of standard deviation offers numerical stability,
-        # ensures positive standard deviations, and can make optimization more effective and robust.
-        self.log_std_linear = nn.Linear(hidden_dim, out_dim)
-        self.log_std_linear.weight.data.uniform_(-init_w, init_w)
-        self.log_std_linear.bias.data.uniform_(-init_w, init_w)
+        # self.log_std_min = -20
+        # self.log_std_max = 2
+        # self.mean_linear = nn.Linear(hidden_dim, out_dim)
+        # self.mean_linear.weight.data.uniform_(-init_w, init_w)
+        # self.mean_linear.bias.data.uniform_(-init_w, init_w)
+        #
+        # # parameterizing in terms of log of standard deviation offers numerical stability,
+        # # ensures positive standard deviations, and can make optimization more effective and robust.
+        # self.log_std_linear = nn.Linear(hidden_dim, out_dim)
+        # self.log_std_linear.weight.data.uniform_(-init_w, init_w)
+        # self.log_std_linear.bias.data.uniform_(-init_w, init_w)
         # --------- end for continuous policy ------------------
         self.to(device)
 
@@ -67,15 +66,15 @@ class BasePolicy(nn.Module):
         h1 = self.nonlin(self.fc1(inp))
         h2 = self.nonlin(self.fc2(h1))
         # out = self.fc3(h2)  # this is the original for discrete action space
-        # out = self.fc3_cont(h2)  # this is the original for discrete action space
+        out = self.fc3_cont(h2)
         # ---------- for continuous action space ----------
-        mean = self.mean_linear(h2)
-        log_std = self.log_std_linear(h2)
-        log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
+        # mean = self.mean_linear(h2)
+        # log_std = self.log_std_linear(h2)
+        # log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
         # out = (mean, log_std)
         # ---------- end for continuous action space ----------
-        return mean, log_std
-        # return out
+        # return mean, log_std
+        return out
 
 
 class DiscretePolicy(BasePolicy):
@@ -88,15 +87,15 @@ class DiscretePolicy(BasePolicy):
     def forward(self, obs, sample=True, return_all_probs=False,
                 return_log_pi=False, regularize=False,
                 return_entropy=False):
-        # out = super(DiscretePolicy, self).forward(obs)  # for discrete, original
-        mean, log_std = super(DiscretePolicy, self).forward(obs)
+        out = super(DiscretePolicy, self).forward(obs)  # for discrete, original
+        # mean, log_std = super(DiscretePolicy, self).forward(obs)
         # ----- for continuous policy --------
-        std = log_std.exp()
-        normal = Normal(0, 1)  # this is the re-parameterization trick
-        z = normal.sample(mean.shape)
-        action = torch.tanh(mean + std * z.to(device))
-        rets = [action]
-        # # rets = [out]
+        # std = log_std.exp()
+        # normal = Normal(0, 1)  # this is the re-parameterization trick
+        # z = normal.sample(mean.shape)
+        # action = torch.tanh(mean + std * z.to(device))
+        # rets = [action]
+        rets = [out]
         if return_log_pi:
             log_prob = Normal(mean, std).log_prob(mean + std*z.to(device)) - torch.log(1 - action.pow(2) + 1e-6)
             log_prob = log_prob.sum(dim=-1, keepdim=True)  # required for multi-dimensional continuous action space, sum action prob across entire action vector

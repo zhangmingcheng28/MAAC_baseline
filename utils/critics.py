@@ -5,13 +5,43 @@ import numpy as np
 from itertools import chain
 
 
+class MaddpgCritic(nn.Module):
+    def __init__(self, sa_sizes, hidden_dim=32, norm_in=False, attend_heads=1):
+        super(MaddpgCritic, self).__init__()
+        self.sa_sizes = sa_sizes
+        self.nagents = len(sa_sizes)
+        self.feature_critics = nn.ModuleList()
+        self.combine_critics = nn.ModuleList()
+        obs_dim = sa_sizes[0][0] * self.nagents
+        act_dim = sa_sizes[0][1] * self.nagents
+        for sdim, adim in sa_sizes:
+            feature_encoder = nn.Sequential()
+            combine_encoder = nn.Sequential()
+            feature_encoder.add_module('fc1', nn.Linear(obs_dim, 1024))
+            feature_encoder.add_module('fc1_ac', nn.ReLU())
+            self.feature_critics.append(feature_encoder)
+            combine_encoder.add_module('fc2', nn.Linear(1024 + act_dim, 512))
+            combine_encoder.add_module('fc2_ac', nn.ReLU())
+            combine_encoder.add_module('fc3', nn.Linear(512, 300))
+            combine_encoder.add_module('fc3_ac', nn.ReLU())
+            combine_encoder.add_module('fc4', nn.Linear(300, 1))
+            combine_encoder.add_module('fc4_ac', nn.ReLU())
+            self.combine_critics.append(combine_encoder)
+
+    def forward(self, obs, acts, agent_idx):
+        state_features = self.feature_critics[agent_idx](obs)
+        fea_act_combined = torch.cat([state_features, acts], dim=1)
+        result = self.combine_critics[agent_idx](fea_act_combined)
+        return result
+
+
 class AttentionCritic(nn.Module):
     """
     Attention network, used as critic for all agents. Each agent gets its own
     observation and action, and can also attend over the other agents' encoded
     observations and actions.
     """
-    def __init__(self, sa_sizes, hidden_dim=32, norm_in=True, attend_heads=1):
+    def __init__(self, sa_sizes, hidden_dim=32, norm_in=False, attend_heads=1):
         """
         Inputs:
             sa_sizes (list of (int, int)): Size of state and action spaces per

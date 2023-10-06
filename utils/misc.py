@@ -26,8 +26,13 @@ def hard_update(target, source):
         target (torch.nn.Module): Net to copy parameters to
         source (torch.nn.Module): Net whose parameters to copy
     """
-    for target_param, param in zip(target.parameters(), source.parameters()):
-        target_param.data.copy_(param.data)
+    if not isinstance(target, list):
+        for target_param, param in zip(target.parameters(), source.parameters()):
+            target_param.data.copy_(param.data)
+    else:
+        for agent_idx in range(len(target)):
+            for target_param, param in zip(target[agent_idx].parameters(), source[agent_idx].parameters()):
+                target_param.data.copy_(param.data)
 
 # https://github.com/seba-1511/dist_tuto.pth/blob/gh-pages/train_dist.py
 def average_gradients(model):

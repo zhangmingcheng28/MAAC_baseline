@@ -3,7 +3,8 @@ import torch.nn.functional as F
 from torch.optim import Adam
 from utils.misc import soft_update, hard_update, enable_gradients, disable_gradients
 from utils.agents import AttentionAgent
-from utils.critics import AttentionCritic
+from utils.critics import AttentionCritic, MaddpgCritic
+import torch.nn as nn
 import copy
 import numpy as np
 import time
@@ -41,17 +42,15 @@ class AttentionSAC(object):
         """
         self.nagents = len(sa_size)
 
-        self.agents = [AttentionAgent(lr=pi_lr,
-                                      hidden_dim=pol_hidden_dim,
-                                      **params)
-                         for params in agent_init_params]
-        self.critic = AttentionCritic(sa_size, hidden_dim=critic_hidden_dim,
-                                      attend_heads=attend_heads)
-        self.target_critic = AttentionCritic(sa_size, hidden_dim=critic_hidden_dim,
-                                             attend_heads=attend_heads)
-        hard_update(self.target_critic, self.critic)
-        self.critic_optimizer = Adam(self.critic.parameters(), lr=q_lr,
-                                     weight_decay=1e-3)
+        self.agents = [AttentionAgent(lr=pi_lr, hidden_dim=pol_hidden_dim, **params) for params in agent_init_params]
+        # self.critic = AttentionCritic(sa_size, hidden_dim=critic_hidden_dim, attend_heads=attend_heads)
+        # self.critic = [MaddpgCritic(sa_size, hidden_dim=critic_hidden_dim, attend_heads=attend_heads) for _ in range(len(sa_size))]
+        self.critic = MaddpgCritic(sa_size, hidden_dim=critic_hidden_dim, attend_heads=attend_heads)
+        # self.target_critic = AttentionCritic(sa_size, hidden_dim=critic_hidden_dim, attend_heads=attend_heads)
+        self.target_critic = MaddpgCritic(sa_size, hidden_dim=critic_hidden_dim, attend_heads=attend_heads)
+        # hard_update(self.target_critic, self.critic)
+        self.critic_optimizer = Adam(self.critic.parameters(), lr=q_lr, weight_decay=1e-3)
+        # self.critic_optimizer = [Adam(x.parameters(), lr=q_lr, weight_decay=1e-3) for x in self.critic]
         self.agent_init_params = agent_init_params
         self.gamma = gamma
         self.tau = tau
@@ -84,20 +83,21 @@ class AttentionSAC(object):
         """
         # ---------- added for con act space-------------
         outlist = []
+        for var_idx, var in enumerate(self.var):
+            print("Current episode {}, agent {} var is {}".format(ep_i, var_idx, var))
         for a, obs, var_idx in zip(self.agents, observations, range(len(self.var))):
             act = a.step(obs, explore=explore)
         # ------- for no extra noise -------------
         #     act = torch.clamp(act, -1.0, 1.0)
             outlist.append(act)
         # ------- end for no extra noise -------------
-        #     if explore:
-        #         act = act + torch.from_numpy(np.random.randn(2) * self.var[var_idx])
-        #         if self.var[var_idx] > 0.05:
-        #             self.var[var_idx] = self.var[var_idx] * 0.999998
-        #         act = torch.clamp(act, -1.0, 1.0)
-        #     outlist.append(act)
-        # for var_idx, var in enumerate(self.var):
-        #     print("Current episode {}, agent {} var is {}".format(ep_i, var_idx, var))
+            if explore:
+                act = act + torch.from_numpy(np.random.randn(2) * self.var[var_idx])
+                if self.var[var_idx] > 0.05:
+                    self.var[var_idx] = self.var[var_idx] * 0.999998
+                act = torch.clamp(act, -1.0, 1.0)
+            outlist.append(act)
+
         return outlist
         # end of adding for con act space --------------------
 
@@ -105,6 +105,58 @@ class AttentionSAC(object):
         # for a, obs in zip(self.agents, observations):
         #     outlist.append(a.step(obs, explore=explore))
         # return outlist
+
+    def update_maddpg_critic(self, sample):
+        # print("enter maddpg critic")
+        obs, acs, rews, next_obs, dones = sample
+        c_loss = []
+        state_batch = torch.stack(obs, dim=1)
+        action_batch = torch.stack(acs, dim=1)
+        reward_batch = torch.stack(rews, dim=1)
+        non_final_next_states = []
+        for agentIdx in range(len(next_obs)):
+            next_obs_check = next_obs[agentIdx] * torch.logical_not(dones[agentIdx].unsqueeze(1))
+            mask = (next_obs_check != 0).any(dim=1)
+            filtered_tensor = next_obs_check[mask]
+            non_final_next_states.append(filtered_tensor)  # only applicable to one fail all fail, condition
+        non_final_next_states = torch.stack(non_final_next_states, dim=1)
+        whole_state = state_batch.view(state_batch.shape[0], -1)
+        whole_action = action_batch.view(action_batch.shape[0], -1)
+
+        for agent_idx in range(len(self.agents)):
+            self.critic_optimizer.zero_grad()
+            current_Q = self.critic(whole_state, whole_action, agent_idx)
+            non_final_next_actions = [self.policies[i](non_final_next_states[:, i, :]) for i in range(len(self.agents))]
+            non_final_next_actions = torch.stack(non_final_next_actions)
+            non_final_next_actions = (non_final_next_actions.transpose(0, 1).contiguous())
+            target_Q = torch.zeros(state_batch.shape[0])
+            target_Q[torch.logical_not(dones[agent_idx])] = self.critic(non_final_next_states.view(-1, whole_state.shape[1]), non_final_next_actions.view(-1, whole_action.shape[1]), agent_idx).squeeze(1)
+            target_Q = (target_Q.unsqueeze(1) * self.gamma) + (reward_batch[:, agent_idx].unsqueeze(1))
+            loss_Q = nn.MSELoss()(current_Q, target_Q.detach())
+            loss_Q.backward()
+            c_loss.append(loss_Q)
+            self.critic_optimizer.step()
+            self.critic_optimizer.zero_grad()
+
+    def update_maddpg_policies(self, sample):
+        # print('enter maddpg policies')
+        obs, acs, rews, next_obs, dones = sample
+        a_loss = []
+        state_batch = torch.stack(obs, dim=1)
+        action_batch = torch.stack(acs, dim=1)
+        whole_state = state_batch.view(state_batch.shape[0], -1)
+
+        for agent_idx in range(len(self.agents)):
+            self.agents[agent_idx].policy_optimizer.zero_grad()
+            state_i = state_batch[:, agent_idx, :]
+            action_i = self.policies[agent_idx](state_i)
+            ac = action_batch.clone()
+            ac[:, agent_idx, :] = action_i
+            whole_action = ac.view(action_batch.shape[0], -1)
+            actor_loss = -self.critic(whole_state, whole_action, agent_idx).mean()
+            actor_loss.backward()
+            self.agents[agent_idx].policy_optimizer.step()
+            a_loss.append(actor_loss)
 
 
     def update_critic(self, sample, soft=True, logger=None, **kwargs):

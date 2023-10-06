@@ -19,6 +19,8 @@ if torch.cuda.is_available():
     torch.set_default_tensor_type(torch.cuda.FloatTensor)
 else:
     torch.set_default_tensor_type(torch.FloatTensor)
+
+
 def make_parallel_env(env_id, n_rollout_threads, seed):
     def get_env_fn(rank):
         def init_env():
@@ -71,12 +73,12 @@ def run(config):
     current_date = today.strftime("%d%m%y")
     current_time = datetime.datetime.now()
     formatted_time = current_time.strftime("%H_%M_%S")
-
+    train_mode = 'MADDPG'
     wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
     wandb.init(
         # set the wandb project where this run will be logged
         project="MADDPG_sample_newFrameWork",
-        name='MAAC_C_gpu_SS3_test_'+str(current_date) + '_' + str(formatted_time),
+        name='MADDPG_C_sto_SS3_test_'+str(current_date) + '_' + str(formatted_time),
         # track hyperparameters and run metadata
         config={
             "epochs": config.n_episodes,
@@ -155,14 +157,19 @@ def run(config):
                 if config.use_gpu:
                     model.prep_training(device=device)
                 else:
-                    model.prep_training(device='cpu')
+                    model.prep_training(device=device)
                 for u_i in range(config.num_updates):
                     sample = replay_buffer.sample(config.batch_size,
                                                   to_gpu=config.use_gpu)
-                    model.update_critic(sample, logger=logger)
-                    model.update_policies(sample, logger=logger)
+                    if train_mode == 'MADDPG':
+                        model.update_maddpg_critic(sample)
+                        model.update_maddpg_policies(sample)
+                    else:
+                        model.update_critic(sample, logger=logger)
+                        model.update_policies(sample, logger=logger)
 
-                    model.update_all_targets()  # soft update
+                    if t % 100 == 0:  # only execute soft update every 100 steps in all episode training.
+                        model.update_all_targets()  # soft update
 
                 model.prep_rollouts(device=device)
             # if explore_input == False:  # when evaluation, every step we need to show result
@@ -225,7 +232,7 @@ if __name__ == '__main__':
     parser.add_argument("--tau", default=0.001, type=float)
     parser.add_argument("--gamma", default=0.95, type=float)
     parser.add_argument("--reward_scale", default=100., type=float)  # was 100
-    parser.add_argument("--use_gpu", default="True", action='store_true')
+    parser.add_argument("--use_gpu", default=False, action='store_true')
 
     config = parser.parse_args()
 

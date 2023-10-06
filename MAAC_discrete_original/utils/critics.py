@@ -11,7 +11,7 @@ class AttentionCritic(nn.Module):
     observation and action, and can also attend over the other agents' encoded
     observations and actions.
     """
-    def __init__(self, sa_sizes, hidden_dim=32, norm_in=True, attend_heads=1):
+    def __init__(self, sa_sizes, hidden_dim=32, norm_in=False, attend_heads=1):
         """
         Inputs:
             sa_sizes (list of (int, int)): Size of state and action spaces per
@@ -40,12 +40,14 @@ class AttentionCritic(nn.Module):
                 encoder.add_module('enc_bn', nn.BatchNorm1d(idim,
                                                             affine=False))
             encoder.add_module('enc_fc1', nn.Linear(idim, hidden_dim))
-            encoder.add_module('enc_nl', nn.LeakyReLU())
+            # encoder.add_module('enc_nl', nn.LeakyReLU())
+            encoder.add_module('enc_nl', nn.ReLU())
             self.critic_encoders.append(encoder)
             critic = nn.Sequential()
             critic.add_module('critic_fc1', nn.Linear(2 * hidden_dim,
                                                       hidden_dim))
-            critic.add_module('critic_nl', nn.LeakyReLU())
+            # critic.add_module('critic_nl', nn.LeakyReLU())
+            critic.add_module('critic_nl', nn.ReLU())
             critic.add_module('critic_fc2', nn.Linear(hidden_dim, odim))
             self.critics.append(critic)
 
@@ -55,7 +57,8 @@ class AttentionCritic(nn.Module):
                                             sdim, affine=False))
             state_encoder.add_module('s_enc_fc1', nn.Linear(sdim,
                                                             hidden_dim))
-            state_encoder.add_module('s_enc_nl', nn.LeakyReLU())
+            # state_encoder.add_module('s_enc_nl', nn.LeakyReLU())
+            state_encoder.add_module('s_enc_nl', nn.ReLU())
             self.state_encoders.append(state_encoder)
 
         attend_dim = hidden_dim // attend_heads
@@ -65,9 +68,8 @@ class AttentionCritic(nn.Module):
         for i in range(attend_heads):
             self.key_extractors.append(nn.Linear(hidden_dim, attend_dim, bias=False))
             self.selector_extractors.append(nn.Linear(hidden_dim, attend_dim, bias=False))
-            self.value_extractors.append(nn.Sequential(nn.Linear(hidden_dim,
-                                                                attend_dim),
-                                                       nn.LeakyReLU()))
+            # self.value_extractors.append(nn.Sequential(nn.Linear(hidden_dim, attend_dim), nn.LeakyReLU()))
+            self.value_extractors.append(nn.Sequential(nn.Linear(hidden_dim, attend_dim), nn.ReLU()))
 
         self.shared_modules = [self.key_extractors, self.selector_extractors,
                                self.value_extractors, self.critic_encoders]

@@ -87,16 +87,16 @@ def run(config):
     current_time = datetime.datetime.now()
     formatted_time = current_time.strftime("%H_%M_%S")
 
-    wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
-    wandb.init(
-        # set the wandb project where this run will be logged
-        project="MADDPG_sample_newFrameWork",
-        name='MAAC_D_gpu_SS3_test_'+str(current_date) + '_' + str(formatted_time),
-        # track hyperparameters and run metadata
-        config={
-            "epochs": config.n_episodes,
-        }
-    )
+    # wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
+    # wandb.init(
+    #     # set the wandb project where this run will be logged
+    #     project="MADDPG_sample_newFrameWork",
+    #     name='MAAC_D_gpu_SS3_test_'+str(current_date) + '_' + str(formatted_time),
+    #     # track hyperparameters and run metadata
+    #     config={
+    #         "epochs": config.n_episodes,
+    #     }
+    # )
 
     model_dir = Path('./models') / config.env_id / config.model_name
     if not model_dir.exists():
@@ -180,7 +180,7 @@ def run(config):
         #     logger.add_scalar('agent%i/mean_episode_rewards' % a_i, a_ep_rew * config.episode_length, ep_i)
         eps_end = time.time() - eps_start_time
         print("accumulated episode reward is {}, time used is {} seconds".format(ep_acc_rws, eps_end))
-        wandb.log({'episode_rewards': float(ep_acc_rws)})
+        # wandb.log({'episode_rewards': float(ep_acc_rws)})
 
         # if ep_i % config.save_interval < config.n_rollout_threads:
         #     model.prep_rollouts(device='cpu')
@@ -194,7 +194,7 @@ def run(config):
     env.close()
     logger.export_scalars_to_json(str(log_dir / 'summary.json'))
     logger.close()
-    wandb.finish()
+    # wandb.finish()
 
 
 if __name__ == '__main__':
@@ -216,7 +216,7 @@ if __name__ == '__main__':
     parser.add_argument("--q_lr", default=0.001, type=float)  # critic lr, was 0.001
     parser.add_argument("--tau", default=0.001, type=float)
     parser.add_argument("--gamma", default=0.95, type=float)  # was 0.99
-    parser.add_argument("--reward_scale", default=1., type=float)
+    parser.add_argument("--reward_scale", default=100., type=float)
     parser.add_argument("--use_gpu", action='store_true')
 
     config = parser.parse_args()
