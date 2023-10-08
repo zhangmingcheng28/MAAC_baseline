@@ -73,18 +73,19 @@ def run(config):
     current_date = today.strftime("%d%m%y")
     current_time = datetime.datetime.now()
     formatted_time = current_time.strftime("%H_%M_%S")
-    train_mode = 'MADDPG'
+    # train_mode = 'MADDPG'
+    train_mode = 'MAAC'
 
-    # wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
-    # wandb.init(
-    #     # set the wandb project where this run will be logged
-    #     project="MADDPG_sample_newFrameWork",
-    #     name='MADDPG_C_gpu_sto_SS3_test_'+str(current_date) + '_' + str(formatted_time),
-    #     # track hyperparameters and run metadata
-    #     config={
-    #         "epochs": config.n_episodes,
-    #     }
-    # )
+    wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
+    wandb.init(
+        # set the wandb project where this run will be logged
+        project="MADDPG_sample_newFrameWork",
+        name='MADDPG_C_cpu__SS3_test_'+str(current_date) + '_' + str(formatted_time),
+        # track hyperparameters and run metadata
+        config={
+            "epochs": config.n_episodes,
+        }
+    )
 
     model_dir = Path('./models') / config.env_id / config.model_name
     if not model_dir.exists():
@@ -189,7 +190,7 @@ def run(config):
 
         eps_end = time.time() - eps_start_time
         print("accumulated episode reward is {}, time used is {} seconds".format(ep_acc_rws, eps_end))
-        # wandb.log({'episode_rewards': float(ep_acc_rws)})
+        wandb.log({'episode_rewards': float(ep_acc_rws)})
 
 
         if config.mode == "train":
@@ -207,7 +208,7 @@ def run(config):
     env.close()
     logger.export_scalars_to_json(str(log_dir / 'summary.json'))
     logger.close()
-    # wandb.finish()
+    wandb.finish()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -233,7 +234,7 @@ if __name__ == '__main__':
     parser.add_argument("--tau", default=0.001, type=float)
     parser.add_argument("--gamma", default=0.95, type=float)
     parser.add_argument("--reward_scale", default=100., type=float)  # was 100
-    parser.add_argument("--use_gpu", default=True, action='store_true')
+    parser.add_argument("--use_gpu", default=False, action='store_true')
 
     config = parser.parse_args()
 

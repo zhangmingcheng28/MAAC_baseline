@@ -43,11 +43,10 @@ class AttentionSAC(object):
         self.nagents = len(sa_size)
 
         self.agents = [AttentionAgent(lr=pi_lr, hidden_dim=pol_hidden_dim, **params) for params in agent_init_params]
-        # self.critic = AttentionCritic(sa_size, hidden_dim=critic_hidden_dim, attend_heads=attend_heads)
-        # self.critic = [MaddpgCritic(sa_size, hidden_dim=critic_hidden_dim, attend_heads=attend_heads) for _ in range(len(sa_size))]
-        self.critic = MaddpgCritic(sa_size, hidden_dim=critic_hidden_dim, attend_heads=attend_heads)
-        # self.target_critic = AttentionCritic(sa_size, hidden_dim=critic_hidden_dim, attend_heads=attend_heads)
-        self.target_critic = MaddpgCritic(sa_size, hidden_dim=critic_hidden_dim, attend_heads=attend_heads)
+        self.critic = AttentionCritic(sa_size, hidden_dim=critic_hidden_dim, attend_heads=attend_heads)
+        # self.critic = MaddpgCritic(sa_size, hidden_dim=critic_hidden_dim, attend_heads=attend_heads)
+        self.target_critic = AttentionCritic(sa_size, hidden_dim=critic_hidden_dim, attend_heads=attend_heads)
+        # self.target_critic = MaddpgCritic(sa_size, hidden_dim=critic_hidden_dim, attend_heads=attend_heads)
         # hard_update(self.target_critic, self.critic)
         self.critic_optimizer = Adam(self.critic.parameters(), lr=q_lr, weight_decay=1e-3)
         # self.critic_optimizer = [Adam(x.parameters(), lr=q_lr, weight_decay=1e-3) for x in self.critic]
@@ -158,7 +157,6 @@ class AttentionSAC(object):
             self.agents[agent_idx].policy_optimizer.step()
             a_loss.append(actor_loss)
 
-
     def update_critic(self, sample, soft=True, logger=None, **kwargs):
         """
         Update central critic for all agents
@@ -167,9 +165,8 @@ class AttentionSAC(object):
         # Q loss
         next_acs = []
         next_log_pis = []
-        for pi, ob in zip(self.target_policies, next_obs):
-            # curr_next_ac, curr_next_log_pi = pi(ob, return_log_pi=True)  # pi is the target actor policy
-            curr_next_ac, curr_next_log_pi = pi(ob, return_log_pi=True)  # try if we just output continuous action
+        for a_i, pi, ob in zip(range(self.nagents), self.target_policies, next_obs):
+            curr_next_ac, curr_next_log_pi = pi(ob, return_log_pi=True)  # pi is the target actor policy, try if we just output continuous action
             next_acs.append(curr_next_ac)
             next_log_pis.append(curr_next_log_pi)
         trgt_critic_in = list(zip(next_obs, next_acs))
@@ -186,14 +183,16 @@ class AttentionSAC(object):
         #         q_loss += reg  # regularizing attention
 
         # no regularizing for attention critic output loss or the Q loss.
+        # self.critic_optimizer.zero_grad()
         for a_i, nq, log_pi, (pq, regs) in zip(range(self.nagents), next_qs, next_log_pis, critic_rets):
             target_q = (rews[a_i].view(-1, 1) + self.gamma * nq * (1 - dones[a_i].view(-1, 1)))
-            if soft:
-                target_q -= log_pi / self.reward_scale
+            # if soft:
+            #     target_q -= log_pi / self.reward_scale
             # q_loss = q_loss + MSELoss(pq, target_q.detach())
-            q_loss += MSELoss(pq, target_q.detach())
-            for reg in regs:
-                q_loss += reg  # regularizing attention
+            # q_loss += MSELoss(pq, target_q.detach())
+            q_loss = q_loss + nn.MSELoss()(pq, target_q.detach())
+            # for reg in regs:
+            #     q_loss += reg  # regularizing attention
         q_loss.backward()
         # self.critic.scale_shared_grads()
         # grad_norm = torch.nn.utils.clip_grad_norm(self.critic.parameters(), 10 * self.nagents)
@@ -203,7 +202,7 @@ class AttentionSAC(object):
         # if logger is not None:
         #     logger.add_scalar('losses/q_loss', q_loss, self.niter)
         #     logger.add_scalar('grad_norms/q', grad_norm, self.niter)
-        self.niter += 1
+        # self.niter += 1
 
     def update_policies(self, sample, soft=True, logger=None, **kwargs):
         # soft = False
@@ -248,30 +247,31 @@ class AttentionSAC(object):
         for a_i, log_pi, pol_regs, q in zip(range(self.nagents), all_log_pis, all_pol_regs, critic_rets):
         # for a_i, log_pi, q, v in zip(range(self.nagents), all_log_pis, critic_rets, all_baselines):
             curr_agent = self.agents[a_i]
+            curr_agent.policy_optimizer.zero_grad()
             # v = (all_q * probs).sum(dim=1, keepdim=True)  # this is the baseline function, or the "b"
             # pol_target = q - v
             pol_target = q
-            if soft:
-                pol_loss = (log_pi * (log_pi / self.reward_scale - pol_target).detach()).mean()
-            else:
-                pol_loss = (log_pi * (-pol_target).detach()).mean()
+            # if soft:
+            #     pol_loss = (log_pi * (log_pi / self.reward_scale - pol_target).detach()).mean()
+            # else:
+            #     pol_loss = (log_pi * (-pol_target).detach()).mean()
 
             # Create the dummy tensor with requires_grad=True
-            # N = len(pol_target)
-            # dummy_tensor = torch.ones((N, 1), requires_grad=True)
-            # pol_loss = (dummy_tensor*(-pol_target).detach()).mean()
+            N = len(pol_target)
+            dummy_tensor = torch.ones((N, 1), requires_grad=True)
+            pol_loss = (dummy_tensor*(-pol_target).detach()).mean()
 
-            for reg in pol_regs:
-                pol_loss += 1e-3 * reg  # policy regularization
+            # for reg in pol_regs:
+            #     pol_loss += 1e-3 * reg  # policy regularization
 
         # for a_i, q in zip(range(self.nagents), critic_rets):
         #     curr_agent = self.agents[a_i]
         #     pol_loss = -q.detach().mean()
 
             # don't want critic to accumulate gradients from policy loss
-            disable_gradients(self.critic)
+            # disable_gradients(self.critic)
             pol_loss.backward()
-            enable_gradients(self.critic)
+            # enable_gradients(self.critic)
 
             # grad_norm = torch.nn.utils.clip_grad_norm(curr_agent.policy.parameters(), 0.5)
             curr_agent.policy_optimizer.step()
