@@ -12,6 +12,7 @@ import time
 MSELoss = torch.nn.MSELoss()
 use_cuda = torch.cuda.is_available()
 device = torch.device("cuda" if use_cuda else "cpu")
+AC_alpha = 0.08
 
 class AttentionSAC(object):
     """
@@ -185,7 +186,8 @@ class AttentionSAC(object):
         # no regularizing for attention critic output loss or the Q loss.
         # self.critic_optimizer.zero_grad()
         for a_i, nq, log_pi, (pq, regs) in zip(range(self.nagents), next_qs, next_log_pis, critic_rets):
-            target_q = (rews[a_i].view(-1, 1) + self.gamma * nq * (1 - dones[a_i].view(-1, 1)))
+            target_q = (rews[a_i].view(-1, 1) + self.gamma * nq * (1 - dones[a_i].view(-1, 1))) + AC_alpha*log_pi
+            # target_q = (rews[a_i].view(-1, 1) + self.gamma * nq * (1 - dones[a_i].view(-1, 1)))
             # if soft:
             #     target_q -= log_pi / self.reward_scale
             # q_loss = q_loss + MSELoss(pq, target_q.detach())
@@ -196,6 +198,7 @@ class AttentionSAC(object):
         q_loss.backward()
         # self.critic.scale_shared_grads()
         # grad_norm = torch.nn.utils.clip_grad_norm(self.critic.parameters(), 10 * self.nagents)
+        grad_norm = torch.nn.utils.clip_grad_norm(self.critic.parameters(), 5 * self.nagents)
         self.critic_optimizer.step()
         self.critic_optimizer.zero_grad()
 
@@ -259,7 +262,9 @@ class AttentionSAC(object):
             # Create the dummy tensor with requires_grad=True
             N = len(pol_target)
             dummy_tensor = torch.ones((N, 1), requires_grad=True)
-            pol_loss = (dummy_tensor*(-pol_target).detach()).mean()
+            # pol_loss = (log_pi*(-pol_target).detach()).mean()
+            pol_loss = (log_pi*(AC_alpha*log_pi - pol_target).detach()).mean()
+            # pol_loss = (log_pi*(-pol_target-1*log_pi).detach()).mean()
 
             # for reg in pol_regs:
             #     pol_loss += 1e-3 * reg  # policy regularization
@@ -273,7 +278,7 @@ class AttentionSAC(object):
             pol_loss.backward()
             # enable_gradients(self.critic)
 
-            # grad_norm = torch.nn.utils.clip_grad_norm(curr_agent.policy.parameters(), 0.5)
+            grad_norm = torch.nn.utils.clip_grad_norm(curr_agent.policy.parameters(), 0.5)
             curr_agent.policy_optimizer.step()
             curr_agent.policy_optimizer.zero_grad()
 

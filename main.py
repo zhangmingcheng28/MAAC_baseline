@@ -1,6 +1,7 @@
 import torch
 import os
 import numpy as np
+import pickle
 import wandb
 import argparse, datetime
 from gym.spaces import Box, Discrete
@@ -76,16 +77,16 @@ def run(config):
     # train_mode = 'MADDPG'
     train_mode = 'MAAC'
 
-    wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
-    wandb.init(
-        # set the wandb project where this run will be logged
-        project="MADDPG_sample_newFrameWork",
-        name='MADDPG_C_cpu__SS3_test_'+str(current_date) + '_' + str(formatted_time),
-        # track hyperparameters and run metadata
-        config={
-            "epochs": config.n_episodes,
-        }
-    )
+    # wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
+    # wandb.init(
+    #     # set the wandb project where this run will be logged
+    #     project="MADDPG_sample_newFrameWork",
+    #     name='MADDPG_C_gpu__SS3_test_'+str(current_date) + '_' + str(formatted_time),
+    #     # track hyperparameters and run metadata
+    #     config={
+    #         "epochs": config.n_episodes,
+    #     }
+    # )
 
     model_dir = Path('./models') / config.env_id / config.model_name
     if not model_dir.exists():
@@ -120,7 +121,7 @@ def run(config):
                                            attend_heads=config.attend_heads,
                                            reward_scale=config.reward_scale)
     else:
-        model = AttentionSAC.init_from_save(r"F:\githubClone\MAAC_baseline\models\simple_spread\MAAC\run93\incremental\model_ep43001.pt")
+        model = AttentionSAC.init_from_save(r"D:\MAAC_baseline\models\simple_spread\MAAC\run68\model.pt")
         print("model loaded")
         explore_input = False
     replay_buffer = ReplayBuffer(config.buffer_length, model.nagents,
@@ -128,6 +129,7 @@ def run(config):
                                  [acsp.shape[0] if isinstance(acsp, Box) else acsp.n
                                   for acsp in env.action_space])
     t = 0
+    eps_reward = []
     for ep_i in range(0, config.n_episodes, config.n_rollout_threads):
         print("Episodes %i-%i of %i" % (ep_i + 1,
                                         ep_i + 1 + config.n_rollout_threads,
@@ -190,7 +192,11 @@ def run(config):
 
         eps_end = time.time() - eps_start_time
         print("accumulated episode reward is {}, time used is {} seconds".format(ep_acc_rws, eps_end))
-        wandb.log({'episode_rewards': float(ep_acc_rws)})
+        eps_reward.append(ep_acc_rws)
+        # save the reward for pickle.
+        with open(str(run_dir) + '/all_episode_reward.pickle', 'wb') as handle:
+            pickle.dump(eps_reward, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        # wandb.log({'episode_rewards': float(ep_acc_rws)})
 
 
         if config.mode == "train":
@@ -208,7 +214,7 @@ def run(config):
     env.close()
     logger.export_scalars_to_json(str(log_dir / 'summary.json'))
     logger.close()
-    wandb.finish()
+    # wandb.finish()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -218,7 +224,7 @@ if __name__ == '__main__':
     parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument("--n_rollout_threads", default=1, type=int)
     parser.add_argument("--buffer_length", default=int(1e6), type=int)
-    parser.add_argument("--n_episodes", default=50000, type=int)     #50000
+    parser.add_argument("--n_episodes", default=200000, type=int)     #50000
     parser.add_argument("--episode_length", default=50, type=int)
     parser.add_argument("--steps_per_update", default=100, type=int)
     parser.add_argument("--num_updates", default=4, type=int,
@@ -234,7 +240,7 @@ if __name__ == '__main__':
     parser.add_argument("--tau", default=0.001, type=float)
     parser.add_argument("--gamma", default=0.95, type=float)
     parser.add_argument("--reward_scale", default=100., type=float)  # was 100
-    parser.add_argument("--use_gpu", default=False, action='store_true')
+    parser.add_argument("--use_gpu", default=True, action='store_true')
 
     config = parser.parse_args()
 
