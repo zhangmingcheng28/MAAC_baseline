@@ -16,10 +16,13 @@ from algorithms.attention_sac import AttentionSAC
 
 # Set the default device to GPU if available, else CPU
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 if torch.cuda.is_available():
     torch.set_default_tensor_type(torch.cuda.FloatTensor)
+    to_gpu = True
 else:
     torch.set_default_tensor_type(torch.FloatTensor)
+    to_gpu = False
 
 
 def make_parallel_env(env_id, n_rollout_threads, seed):
@@ -77,16 +80,16 @@ def run(config):
     # train_mode = 'MADDPG'
     train_mode = 'MAAC'
 
-    wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
-    wandb.init(
-        # set the wandb project where this run will be logged
-        project="MADDPG_sample_newFrameWork",
-        name=train_mode + '_C_gpu__SS3_test_'+str(current_date) + '_' + str(formatted_time),
-        # track hyperparameters and run metadata
-        config={
-            "epochs": config.n_episodes,
-        }
-    )
+    # wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
+    # wandb.init(
+    #     # set the wandb project where this run will be logged
+    #     project="MADDPG_sample_newFrameWork",
+    #     name=train_mode + '_C_gpu__SS3_test_'+str(current_date) + '_' + str(formatted_time),
+    #     # track hyperparameters and run metadata
+    #     config={
+    #         "epochs": config.n_episodes,
+    #     }
+    # )
 
     model_dir = Path('./models') / config.env_id / config.model_name
     if not model_dir.exists():
@@ -158,22 +161,22 @@ def run(config):
             t += config.n_rollout_threads
             if (len(replay_buffer) >= config.batch_size and
                 (t % config.steps_per_update) < config.n_rollout_threads):
-                if config.use_gpu:
-                    model.prep_training(device=device)
-                else:
-                    model.prep_training(device=device)
+                model.prep_training(device=device)
+                print("training executed on step {}".format(t))
                 for u_i in range(config.num_updates):
-                    sample = replay_buffer.sample(config.batch_size,
-                                                  to_gpu=config.use_gpu)
+                    sample = replay_buffer.sample(config.batch_size, to_gpu=to_gpu)
                     if train_mode == 'MADDPG':
                         model.update_maddpg_critic(sample)
                         model.update_maddpg_policies(sample)
+                        model.update_all_targets()  # soft update
                     else:
+                        print("at step {}, mode is {}, sample-learning loop executed {}".format(t, train_mode, u_i))
                         model.update_critic(sample, logger=logger)
                         model.update_policies(sample, logger=logger)
-
-                    if t % 100 == 0:  # only execute soft update every 100 steps in all episode training.
                         model.update_all_targets()  # soft update
+                    # if t % 100 == 0:  # only execute soft update every 100 steps in all episode training.
+                    #     model.update_all_targets()  # soft update
+
 
                 model.prep_rollouts(device=device)
             # if explore_input == False:  # when evaluation, every step we need to show result
@@ -196,8 +199,7 @@ def run(config):
         # save the reward for pickle.
         with open(str(run_dir) + '/all_episode_reward.pickle', 'wb') as handle:
             pickle.dump(eps_reward, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        wandb.log({'episode_rewards': float(ep_acc_rws)})
-
+        # wandb.log({'episode_rewards': float(ep_acc_rws)})
 
         if config.mode == "train":
             if ep_i % config.save_interval == 0:
@@ -214,7 +216,7 @@ def run(config):
     env.close()
     logger.export_scalars_to_json(str(log_dir / 'summary.json'))
     logger.close()
-    wandb.finish()
+    # wandb.finish()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -240,7 +242,7 @@ if __name__ == '__main__':
     parser.add_argument("--tau", default=0.001, type=float)
     parser.add_argument("--gamma", default=0.95, type=float)
     parser.add_argument("--reward_scale", default=100., type=float)  # was 100
-    parser.add_argument("--use_gpu", default=True, action='store_true')
+    # parser.add_argument("--use_gpu", default=False, action='store_true')
 
     config = parser.parse_args()
 

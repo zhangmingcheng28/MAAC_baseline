@@ -174,12 +174,15 @@ def run(config):
                     model.prep_training(device=device)
                 else:
                     model.prep_training(device=device)
+                print("training executed on step {}".format(t))
                 for u_i in range(config.num_updates):
+                    print("at step {}, sample-learning loop executed {}".format(t, u_i))
                     sample = replay_buffer.sample(config.batch_size,
                                                   to_gpu=config.use_gpu)
                     model.update_critic(sample, logger=logger)
                     model.update_policies(sample, logger=logger)
                     model.update_all_targets()
+
                 model.prep_rollouts(device=device)
             ep_acc_rws = ep_acc_rws + sum(rewards[0])  # must sum(rewards[0]), because rewards is (1x3) not (3,) in shape
         # ep_rews = replay_buffer.get_average_rewards(config.episode_length * config.n_rollout_threads)
