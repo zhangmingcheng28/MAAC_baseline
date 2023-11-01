@@ -8,8 +8,8 @@ class Scenario(BaseScenario):
         world = World()
         # set any world properties first
         world.dim_c = 2
-        num_agents = 3  # was 3
-        num_landmarks = 3  # was 3
+        num_agents = 5  # was 3
+        num_landmarks = 5  # was 3
         # add agents
         world.agents = [Agent() for i in range(num_agents)]
         for i, agent in enumerate(world.agents):
@@ -74,7 +74,7 @@ class Scenario(BaseScenario):
         for l in world.landmarks:
             dists = [np.sqrt(np.sum(np.square(a.state.p_pos - l.state.p_pos))) for a in world.agents]
             dist_to_cur_landmark = np.sqrt(np.sum(np.square(agent.state.p_pos - l.state.p_pos)))
-            # print("current agent {} distance from land mark {} is {}".format(agent.name, l.name, dist_to_cur_landmark))
+            print("current agent {} distance from land mark {} is {}".format(agent.name, l.name, dist_to_cur_landmark))
             rew -= min(dists)
         if agent.collide:
             for a in world.agents:

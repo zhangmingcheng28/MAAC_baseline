@@ -88,16 +88,16 @@ def run(config):
     current_time = datetime.datetime.now()
     formatted_time = current_time.strftime("%H_%M_%S")
 
-    wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
-    wandb.init(
-        # set the wandb project where this run will be logged
-        project="MADDPG_sample_newFrameWork",
-        name='MAAC_' + device.type + '_SS_D_test_' + str(current_date) + '_' + str(formatted_time),
-        # track hyperparameters and run metadata
-        config={
-            "epochs": config.n_episodes,
-        }
-    )
+    # wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
+    # wandb.init(
+    #     # set the wandb project where this run will be logged
+    #     project="MADDPG_sample_newFrameWork",
+    #     name='MAAC_' + device.type + '_SS_D_test_' + str(current_date) + '_' + str(formatted_time),
+    #     # track hyperparameters and run metadata
+    #     config={
+    #         "epochs": config.n_episodes,
+    #     }
+    # )
 
     model_dir = Path('./models') / config.env_id / config.model_name
     if not model_dir.exists():
@@ -119,15 +119,21 @@ def run(config):
     torch.manual_seed(run_num)
     np.random.seed(run_num)
     env = make_parallel_env(config.env_id, config.n_rollout_threads, run_num)
-    model = AttentionSAC.init_from_env(env,
-                                       tau=config.tau,
-                                       pi_lr=config.pi_lr,
-                                       q_lr=config.q_lr,
-                                       gamma=config.gamma,
-                                       pol_hidden_dim=config.pol_hidden_dim,
-                                       critic_hidden_dim=config.critic_hidden_dim,
-                                       attend_heads=config.attend_heads,
-                                       reward_scale=config.reward_scale)
+    if config.mode == "train":
+        explore_input = True
+        model = AttentionSAC.init_from_env(env,
+                                           tau=config.tau,
+                                           pi_lr=config.pi_lr,
+                                           q_lr=config.q_lr,
+                                           gamma=config.gamma,
+                                           pol_hidden_dim=config.pol_hidden_dim,
+                                           critic_hidden_dim=config.critic_hidden_dim,
+                                           attend_heads=config.attend_heads,
+                                           reward_scale=config.reward_scale)
+    else:
+        model = AttentionSAC.init_from_save(r"D:\MAAC_baseline\MAAC_discrete_original\models\simple_spread\MAAC\run9\model.pt")
+        print("model loaded")
+        explore_input = False
     replay_buffer = ReplayBuffer(config.buffer_length, model.nagents,
                                  [obsp.shape[0] for obsp in env.observation_space],
                                  [acsp.shape[0] if isinstance(acsp, Box) else acsp.n
@@ -148,7 +154,7 @@ def run(config):
                                   requires_grad=False)
                          for i in range(model.nagents)]
             # get actions as torch Variables
-            torch_agent_actions = model.step(torch_obs, explore=True)
+            torch_agent_actions = model.step(torch_obs, explore=explore_input)
             # convert actions to numpy arrays
             agent_actions = [ac.data.numpy() if device=='cpu' else ac.data.cpu().numpy() for ac in torch_agent_actions]
             # rearrange actions to be per environment
@@ -186,27 +192,36 @@ def run(config):
         # save the reward for pickle.
         with open(str(run_dir) + '/all_episode_reward.pickle', 'wb') as handle:
             pickle.dump(eps_reward, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        wandb.log({'episode_rewards': float(ep_acc_rws)})
+        # wandb.log({'episode_rewards': float(ep_acc_rws)})
 
         # if ep_i % config.save_interval < config.n_rollout_threads:
         #     model.prep_rollouts(device='cpu')
         #     os.makedirs(run_dir / 'incremental', exist_ok=True)
         #     model.save(run_dir / 'incremental' / ('model_ep%i.pt' % (ep_i + 1)))
         #     model.save(run_dir / 'model.pt')
-        if ep_i % config.save_interval == 0:
-            model.save(run_dir / 'model.pt')
+        if config.mode == "train":
+            if ep_i % config.save_interval == 0:
+                model.save(run_dir / 'model.pt')
+            # if ep_i % config.save_interval < config.n_rollout_threads:
+            #     model.prep_rollouts(device='cpu')
+            #     os.makedirs(run_dir / 'incremental', exist_ok=True)
+            #     model.save(run_dir / 'incremental' / ('model_ep%i.pt' % (ep_i + 1)))
+            #     model.save(run_dir / 'model.pt')
+        else:
+            break  # during evaluation we only run algorithm once
 
     model.save(run_dir / 'model.pt')
     env.close()
     logger.export_scalars_to_json(str(log_dir / 'summary.json'))
     logger.close()
-    wandb.finish()
+    # wandb.finish()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("env_id", default="simple_spread.py", help="Name of environment")
     parser.add_argument("model_name", help="Name of directory to store " + "model/training contents")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument("--n_rollout_threads", default=1, type=int)
     parser.add_argument("--buffer_length", default=int(1e6), type=int)
     parser.add_argument("--n_episodes", default=50000, type=int)

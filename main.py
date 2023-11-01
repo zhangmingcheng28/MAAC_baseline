@@ -77,16 +77,16 @@ def run(config):
     # train_mode = 'MADDPG'
     train_mode = 'MAAC'
 
-    # wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
-    # wandb.init(
-    #     # set the wandb project where this run will be logged
-    #     project="MADDPG_sample_newFrameWork",
-    #     name='MADDPG_C_gpu__SS3_test_'+str(current_date) + '_' + str(formatted_time),
-    #     # track hyperparameters and run metadata
-    #     config={
-    #         "epochs": config.n_episodes,
-    #     }
-    # )
+    wandb.login(key="efb76db851374f93228250eda60639c70a93d1ec")
+    wandb.init(
+        # set the wandb project where this run will be logged
+        project="MADDPG_sample_newFrameWork",
+        name=train_mode + '_C_gpu__SS3_test_'+str(current_date) + '_' + str(formatted_time),
+        # track hyperparameters and run metadata
+        config={
+            "epochs": config.n_episodes,
+        }
+    )
 
     model_dir = Path('./models') / config.env_id / config.model_name
     if not model_dir.exists():
@@ -196,7 +196,7 @@ def run(config):
         # save the reward for pickle.
         with open(str(run_dir) + '/all_episode_reward.pickle', 'wb') as handle:
             pickle.dump(eps_reward, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        # wandb.log({'episode_rewards': float(ep_acc_rws)})
+        wandb.log({'episode_rewards': float(ep_acc_rws)})
 
 
         if config.mode == "train":
@@ -214,7 +214,7 @@ def run(config):
     env.close()
     logger.export_scalars_to_json(str(log_dir / 'summary.json'))
     logger.close()
-    # wandb.finish()
+    wandb.finish()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

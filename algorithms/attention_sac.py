@@ -198,7 +198,7 @@ class AttentionSAC(object):
         q_loss.backward()
         # self.critic.scale_shared_grads()
         # grad_norm = torch.nn.utils.clip_grad_norm(self.critic.parameters(), 10 * self.nagents)
-        grad_norm = torch.nn.utils.clip_grad_norm(self.critic.parameters(), 5 * self.nagents)
+        grad_norm = torch.nn.utils.clip_grad_norm(self.critic.parameters(), 20 * self.nagents)
         self.critic_optimizer.step()
         self.critic_optimizer.zero_grad()
 
