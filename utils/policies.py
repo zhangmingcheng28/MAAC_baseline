@@ -111,7 +111,6 @@ class DiscretePolicy(BasePolicy):
         return rets
         # return out
         # ----- end for continuous policy --------
-
         # probs = F.softmax(out, dim=1)
         # on_gpu = next(self.parameters()).is_cuda
         # if sample:

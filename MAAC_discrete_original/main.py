@@ -168,6 +168,7 @@ def run(config):
             replay_buffer.push(obs, agent_actions, rewards, next_obs, dones)
 
             obs = next_obs
+
             t += config.n_rollout_threads
             if (len(replay_buffer) >= config.batch_size and (t % config.steps_per_update) < config.n_rollout_threads):
                 if config.use_gpu:

@@ -186,15 +186,15 @@ class AttentionSAC(object):
         # no regularizing for attention critic output loss or the Q loss.
         # self.critic_optimizer.zero_grad()
         for a_i, nq, log_pi, (pq, regs) in zip(range(self.nagents), next_qs, next_log_pis, critic_rets):
-            target_q = (rews[a_i].view(-1, 1) + self.gamma * nq * (1 - dones[a_i].view(-1, 1))) + AC_alpha*log_pi
+            target_q = (rews[a_i].view(-1, 1) + self.gamma * nq * (1 - dones[a_i].view(-1, 1))) - AC_alpha*log_pi
             # target_q = (rews[a_i].view(-1, 1) + self.gamma * nq * (1 - dones[a_i].view(-1, 1)))
             # if soft:
             #     target_q -= log_pi / self.reward_scale
             # q_loss = q_loss + MSELoss(pq, target_q.detach())
             # q_loss += MSELoss(pq, target_q.detach())
             q_loss = q_loss + nn.MSELoss()(pq, target_q.detach())
-            # for reg in regs:
-            #     q_loss += reg  # regularizing attention
+            for reg in regs:
+                q_loss += reg  # regularizing attention
         q_loss.backward()
         # self.critic.scale_shared_grads()
         # grad_norm = torch.nn.utils.clip_grad_norm(self.critic.parameters(), 10 * self.nagents)
@@ -266,8 +266,8 @@ class AttentionSAC(object):
             pol_loss = (log_pi*(AC_alpha*log_pi - pol_target).detach()).mean()
             # pol_loss = (log_pi*(-pol_target-1*log_pi).detach()).mean()
 
-            # for reg in pol_regs:
-            #     pol_loss += 1e-3 * reg  # policy regularization
+            for reg in pol_regs:
+                pol_loss += 1e-3 * reg  # policy regularization
 
         # for a_i, q in zip(range(self.nagents), critic_rets):
         #     curr_agent = self.agents[a_i]

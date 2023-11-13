@@ -6,3 +6,5 @@ __pycache__/
 *.xml
 *.iml
 /MAAC_discrete_original/wandb/
+/VDN_simple_spread/models/
+/VDN_simple_spread/wandb/
